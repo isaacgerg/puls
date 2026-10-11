@@ -176,6 +176,9 @@ Tagged releases are for self-hosters and are batched, see `.claude/skills/releas
 - `CHANGELOG.md` keeps exactly one `## [Unreleased]` section
 
 Write a handoff when the user says "handoff", "bye", "done for today", or similar.
+Handoffs go in `.claude/handoffs/` (gitignored), never `docs/handoffs/`: the repo is
+public and handoffs name customers and sites. Do not create `docs/handoffs/`, since the
+handoff command switches to it (shared, committed mode) whenever it exists.
 
 ---
 
