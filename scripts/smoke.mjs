@@ -82,6 +82,12 @@ async function main() {
   execFileSync('php', ['-r', `
     $db = new PDO('sqlite:' . $argv[1]);
     $db->exec("INSERT INTO breakdowns (site, label, event_name, group_key, created_at) VALUES ('demo.example.com', 'Smoke card', 'cta_click', 'location', datetime('now'))");
+    // Hostile names from the public endpoints must render as text, never as markup or script
+    $hostile = 'x"><img src=x onerror="window.__xss=1">' . "');window.__xss=2;('";
+    $ev = $db->prepare("INSERT INTO events (site, event_name, page_path, visitor_hash, created_at) VALUES ('demo.example.com', ?, '/', ?, datetime('now'))");
+    for ($i = 0; $i < 40; $i++) $ev->execute([$hostile, 'xss-' . $i]);
+    $pv = $db->prepare("INSERT INTO pageviews (site, path, visitor_hash, created_at) VALUES ('demo.example.com', ?, ?, datetime('now'))");
+    for ($i = 0; $i < 400; $i++) $pv->execute(['/' . $hostile, 'xss-' . $i]);
   `, dbPath]);
 
   // 4. Headless Chrome with remote debugging
@@ -158,6 +164,19 @@ async function main() {
     expect(q('#chart-card .chart-release'), 'release marker on pageview chart');
     expect(q('.breakdown-card'), 'saved breakdown card');
     expect(q('.breakdown-card .event-new'), 'NEW badge on breakdown card');
+
+    // Hostile event name and path: shown as text, attributes intact, clicking runs no injected code
+    const hostile = 'x"><img src=x onerror="window.__xss=1">' + "');window.__xss=2;('";
+    expect(!document.querySelector('#app [onerror]'), 'no injected attribute from a hostile name');
+    expect([...document.querySelectorAll('.trow-label')].some((l) => l.title === '/' + hostile), 'hostile path kept intact in its title');
+    const hostileRow = [...document.querySelectorAll('.trow[data-event]')].find((r) => r.getAttribute('data-event') === hostile);
+    expect(hostileRow, 'hostile event name kept intact in data-event');
+    if (hostileRow) {
+      hostileRow.click();
+      await sleep(300);
+      document.querySelectorAll('.event-detail').forEach((d) => d.remove());
+    }
+    expect(window.__xss === undefined, 'no injected script ran');
 
     // Accessibility: tabs pattern, dialog focus handling
     const tablist = q('.card-tabs[role="tablist"]');
@@ -298,7 +317,7 @@ async function main() {
     failures.forEach((f) => console.error('  - ' + f));
     process.exitCode = 1;
   } else {
-    console.log('Dashboard smoke test passed: load, release markers, breakdown card and its details, keyboard drill-down, group by version, funnel incl. unseen event, compare, 90 days, light theme, logged-in goal for an unseen event, tabs pattern, dialog focus trap, status announcements. No JS errors.');
+    console.log('Dashboard smoke test passed: load, release markers, breakdown card and its details, hostile names render as text, keyboard drill-down, group by version, funnel incl. unseen event, compare, 90 days, light theme, logged-in goal for an unseen event, tabs pattern, dialog focus trap, status announcements. No JS errors.');
   }
 }
 
