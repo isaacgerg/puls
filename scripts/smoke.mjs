@@ -263,6 +263,10 @@ async function main() {
     q('.period-btn[data-days="90"]').click();
     await waitFor(() => /last 90 days/.test(q('#sr-status').textContent), 'screen reader status announces the period change');
     await waitFor(() => q('.event-detail .event-chart.dense'), 'dense 90-day chart with panel still open', 8000);
+    // A long period scrolls the pageview chart; it opens on the latest days, not the oldest
+    const mainScroll = q('#chart-card .chart-scroll');
+    expect(mainScroll.scrollWidth > mainScroll.clientWidth, '90-day pageview chart is wider than the card');
+    expect(mainScroll.scrollLeft + mainScroll.clientWidth >= mainScroll.scrollWidth - 1, 'pageview chart opens scrolled to the latest day');
     expect(q('.event-detail') && q('.event-detail')._state && q('.event-detail')._state.then, 'funnel choice kept across period change');
 
     // Breakdown card opens the same drill-down inside the card, grouped on its key

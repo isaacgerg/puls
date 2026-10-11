@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Fixed
+
+- Charts for long periods (30 or 90 days on a normal screen) are wider than the card and scroll. They opened on the oldest days, so the latest days and their markers were out of view. They now open on the latest days; scroll left for older ones. The 60-second refresh keeps the position of a chart you scrolled back in.
+
 ## [1.22.0] — 2026-10-12
 
 ### Added
