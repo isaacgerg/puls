@@ -432,6 +432,40 @@ test('api current and previous periods have equal length for days=N', function (
     }
 });
 
+test('api entry pages include bounces that add up to the site bounce rate', function () {
+    $site = 'entry-bounce-' . uniqid();
+    $db = getTestDb();
+    $stmt = $db->prepare('INSERT INTO pageviews (created_at, site, path, visitor_hash) VALUES (?, ?, ?, ?)');
+    $now = time();
+    $at = fn(int $minutes) => date('Y-m-d H:i:s', $now - 3600 + $minutes * 60);
+    // Start page: 4 entries, 3 leave after one page
+    foreach (['a', 'b', 'c'] as $v) {
+        $stmt->execute([$at(0), $site, '/', $v]);
+    }
+    $stmt->execute([$at(0), $site, '/', 'd']);
+    $stmt->execute([$at(1), $site, '/kale', 'd']);
+    // Crop page: 2 entries, both read on
+    foreach (['e', 'f'] as $v) {
+        $stmt->execute([$at(0), $site, '/kale', $v]);
+        $stmt->execute([$at(2), $site, '/', $v]);
+    }
+
+    $token = createTestShareToken($site);
+    $data = json_decode(http('GET', '/?api&days=1&share=' . $token)['body'], true);
+    $byPath = array_column($data['entryPages'], null, 'path');
+
+    expect($byPath['/']['entries'])->toBe(4)
+        ->and($byPath['/']['bounces'])->toBe(3)
+        ->and($byPath['/']['bounceRate'])->toEqual(75)
+        ->and($byPath['/kale']['entries'])->toBe(2)
+        ->and($byPath['/kale']['bounces'])->toBe(0)
+        ->and($byPath['/kale']['bounceRate'])->toEqual(0);
+
+    // Same definition as the site-wide figure: 3 of 6 visitors bounced
+    $bounced = array_sum(array_column($data['entryPages'], 'bounces'));
+    expect(round(100 * $bounced / 6, 1))->toEqual($data['bounceRate']);
+});
+
 test('share API returns 404 for expired token', function () {
     $token = createTestShareToken('test', '2020-01-01 00:00:00');
     $r = http('GET', '/?api&days=7&share=' . $token);

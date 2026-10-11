@@ -1679,8 +1679,9 @@
       var full = decode(r[labelKey]);
       var stripped = prefix ? full.substring(prefix.length) : '';
       var label = prefix ? (stripped ? '/' + stripped : '/') : full;
+      var bounce = r.bounceRate !== undefined ? ' <span class="trow-bounce" style="color:var(--light);font-size:11px" title="Share of visitors who entered here and saw only this page">' + r.bounceRate + '% bounce</span>' : '';
       html += '<div class="trow">' +
-        '<span class="trow-label" title="' + esc(full) + '">' + esc(label) + '</span>' +
+        '<span class="trow-label" title="' + esc(full) + '">' + esc(label) + bounce + '</span>' +
         '<div class="trow-bar"><div class="trow-fill" style="width:' + pct + '%;background:' + color + '"></div></div>' +
         '<span class="trow-val">' + num(r[valKey]) + '</span>' +
       '</div>';
@@ -3172,8 +3173,8 @@
     // Entry pages
     if (d.entryPages && d.entryPages.length) {
       parts.push(csvSection('Entry pages',
-        ['Path', 'Entries'],
-        d.entryPages.map(function(p) { return [p.path, p.entries]; })
+        ['Path', 'Entries', 'Bounces', 'Bounce rate'],
+        d.entryPages.map(function(p) { return [p.path, p.entries, p.bounces, p.bounceRate]; })
       ));
     }
 

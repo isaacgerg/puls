@@ -43,7 +43,7 @@ Puls is designed to be GDPR-friendly without consent banners:
 - **Goals/conversions** — set target pages or events and track conversion rate
 - **Trend indicators** — comparison with previous period (▲12%)
 - **Bounce rate & session length** — median session duration, inverted bounce trend
-- **Entry/exit pages** — see where visitors land and leave
+- **Entry/exit pages** — see where visitors land and leave, with bounce rate per entry page
 - **Summary insights** — best day, peak hour, top page, top source
 - **Realtime** — "N online now" badge (last 5 min)
 - **Dark mode** — System/Dark/Light theme
