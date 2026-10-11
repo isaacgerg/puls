@@ -1232,7 +1232,7 @@ function get_api_data(array $config, array $user): string
     }
 
     // Custom events
-    $eventsLimit = $expand === 'events' ? 1000 : 10;
+    $eventsLimit = $expand === 'events' ? 1000 : 50;
     $eventsPathFilter = $path ? 'AND page_path = ?' : '';
     $stmt = $db->prepare("SELECT event_name, COUNT(*) as count, COUNT(DISTINCT visitor_hash) as visitors FROM events WHERE {$dateFilter} {$siteFilter} {$eventsPathFilter} GROUP BY event_name ORDER BY count DESC LIMIT {$eventsLimit}");
     $stmt->execute(array_merge($dateParams, $siteParams, $pathParams));

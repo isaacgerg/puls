@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Changed
+
+- The API returns up to 50 custom events by default instead of 10, so a client usually gets every event name in one call. `expand=events` still returns all of them. The dashboard card still shows the top 10.
+
 ## [1.21.1] — 2026-10-12
 
 ### Security

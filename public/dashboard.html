@@ -1831,7 +1831,7 @@
         showAllBtn(utmTotal, 'utm', 'UTM campaigns') +
       '</div>' +
       '<div class="tab-panel" data-panel="events" style="display:none">' +
-        renderEventsContent(events) +
+        renderEventsContent((events || []).slice(0, 10)) +
         showAllBtn(eventsTotal, 'events', 'Custom events') +
       '</div>' +
       '<div class="tab-panel" data-panel="outbound" style="display:none">' +
