@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Bounce rate per entry page. `entryPages` in the API gains `bounces` and `bounceRate`, the dashboard shows the rate next to each entry page, and the CSV export has both columns. Same definition as the site bounce rate (visitors with a single pageview), so the bounces across entry pages add up to the site figure.
+
 ### Changed
 
 - The API returns up to 50 custom events by default instead of 10, so a client usually gets every event name in one call. `expand=events` still returns all of them. The dashboard card still shows the top 10.

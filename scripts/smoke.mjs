@@ -164,6 +164,7 @@ async function main() {
     expect(q('#chart-card .chart-release'), 'release marker on pageview chart');
     expect(q('.breakdown-card'), 'saved breakdown card');
     expect(q('.breakdown-card .event-new'), 'NEW badge on breakdown card');
+    expect(/^\d+(\.\d)?% bounce$/.test(q('[data-panel="entry"] .trow-bounce')?.textContent || ''), 'bounce rate on entry pages');
 
     // Hostile event name and path: shown as text, attributes intact, clicking runs no injected code
     const hostile = 'x"><img src=x onerror="window.__xss=1">' + "');window.__xss=2;('";
@@ -317,7 +318,7 @@ async function main() {
     failures.forEach((f) => console.error('  - ' + f));
     process.exitCode = 1;
   } else {
-    console.log('Dashboard smoke test passed: load, release markers, breakdown card and its details, hostile names render as text, keyboard drill-down, group by version, funnel incl. unseen event, compare, 90 days, light theme, logged-in goal for an unseen event, tabs pattern, dialog focus trap, status announcements. No JS errors.');
+    console.log('Dashboard smoke test passed: load, release markers, breakdown card and its details, hostile names render as text, entry page bounce, keyboard drill-down, group by version, funnel incl. unseen event, compare, 90 days, light theme, logged-in goal for an unseen event, tabs pattern, dialog focus trap, status announcements. No JS errors.');
   }
 }
 

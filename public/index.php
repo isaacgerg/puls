@@ -1063,9 +1063,15 @@ function get_api_data(array $config, array $user): string
     $exitPages = [];
     if (!$path) {
         $entryLimit = $expand === 'entryPages' ? 1000 : 10;
-        $stmt = $db->prepare("SELECT path, COUNT(*) as entries FROM (SELECT path, ROW_NUMBER() OVER (PARTITION BY visitor_hash ORDER BY created_at ASC) as rn FROM pageviews WHERE {$dateFilter} {$siteFilter} {$channelFilter}) WHERE rn = 1 GROUP BY path ORDER BY entries DESC LIMIT {$entryLimit}");
+        // Bounces per entry page use the same definition as the site bounce rate: one pageview per visitor_hash
+        $stmt = $db->prepare("SELECT path, COUNT(*) as entries, SUM(CASE WHEN cnt = 1 THEN 1 ELSE 0 END) as bounces FROM (SELECT path, ROW_NUMBER() OVER (PARTITION BY visitor_hash ORDER BY created_at ASC) as rn, COUNT(*) OVER (PARTITION BY visitor_hash) as cnt FROM pageviews WHERE {$dateFilter} {$siteFilter} {$channelFilter}) WHERE rn = 1 GROUP BY path ORDER BY entries DESC LIMIT {$entryLimit}");
         $stmt->execute(array_merge($dateParams, $siteParams, $channelParams));
-        $entryPages = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $entryPages = array_map(fn($e) => [
+            'path' => $e['path'],
+            'entries' => (int) $e['entries'],
+            'bounces' => (int) $e['bounces'],
+            'bounceRate' => round(100 * $e['bounces'] / $e['entries'], 1),
+        ], $stmt->fetchAll(PDO::FETCH_ASSOC));
 
         $exitLimit = $expand === 'exitPages' ? 1000 : 10;
         $stmt = $db->prepare("SELECT path, COUNT(*) as exits FROM (SELECT path, ROW_NUMBER() OVER (PARTITION BY visitor_hash ORDER BY created_at DESC) as rn FROM pageviews WHERE {$dateFilter} {$siteFilter} {$channelFilter}) WHERE rn = 1 GROUP BY path ORDER BY exits DESC LIMIT {$exitLimit}");
