@@ -551,6 +551,23 @@ test('api includes events data', function () {
     expect($data)->toHaveKeys(['events', 'eventsTotal', 'outbound', 'outboundTotal']);
 });
 
+test('api returns up to 50 event names without expand', function () {
+    $site = 'events-limit-' . uniqid();
+    $db = getTestDb();
+    $insert = $db->prepare('INSERT INTO events (site, event_name, event_data, page_path, visitor_hash, created_at) VALUES (?, ?, ?, ?, ?, ?)');
+    for ($i = 1; $i <= 55; $i++) {
+        $insert->execute([$site, 'event_' . $i, null, '/', 'hash-' . $i, date('Y-m-d H:i:s')]);
+    }
+
+    $token = createTestShareToken($site);
+    $data = json_decode(http('GET', '/?api&days=1&share=' . $token)['body'], true);
+    expect($data['events'])->toHaveCount(50);
+    expect($data['eventsTotal'])->toBe(55);
+
+    $data = json_decode(http('GET', '/?api&days=1&share=' . $token . '&expand=events')['body'], true);
+    expect($data['events'])->toHaveCount(55);
+});
+
 test('api event drill-down returns zero-filled daily series and totals', function () {
     $name = 'series_test_' . uniqid();
     http('POST', '/?event', [
