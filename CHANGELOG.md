@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Security
+
+- Stored XSS in the dashboard. Event names, paths and other values sent to the public tracking endpoints were escaped for text but not for quotes, so a crafted name could add attributes, such as an event handler, to the logged-in dashboard. Escaping now covers quotes, and values passed to inline click handlers are encoded as JavaScript strings. Self-hosters should update.
+
 ## [1.21.0] — 2026-10-09
 
 ### Added
