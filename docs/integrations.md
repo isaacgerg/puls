@@ -235,6 +235,10 @@ Add `data-version` to the script tag and every pageview and event carries it:
 
 The day a version is first seen shows as a marker on the pageview chart and on each event's trend, so "before and after 2.6.0" is visible without looking up release dates. In an event drill-down, **Group by version** splits counts per version. Versions are cleaned to letters, digits and `. - + _`, max 50 characters. With Vite, `data-version="%npm_package_version%"` or an injected `import.meta.env` value keeps it in sync with `package.json`.
 
+### Chart notes
+
+Some spikes have no source in the data: a film shown in the Facebook or Instagram app sends no referrer, so its visitors land under Direct and Social. Click **+ Note** on the pageview chart to mark the date, with an optional end date for something that runs over several days, such as a campaign week. A single day shows as a line with its text, a range as a tinted band. Notes are per site, show on event trends too, and appear on shared dashboards, read-only. Change the text or remove a note under **Settings**. API: `annotations` in the dashboard response, `[{id, site, date, end_date, label}]`, every note that overlaps the period.
+
 ### TypeScript
 
 Puls ships no npm package. Declare the global once in your project:
