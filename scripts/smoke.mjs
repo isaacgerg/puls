@@ -88,6 +88,11 @@ async function main() {
     for ($i = 0; $i < 40; $i++) $ev->execute([$hostile, 'xss-' . $i]);
     $pv = $db->prepare("INSERT INTO pageviews (site, path, visitor_hash, created_at) VALUES ('demo.example.com', ?, ?, datetime('now'))");
     for ($i = 0; $i < 400; $i++) $pv->execute(['/' . $hostile, 'xss-' . $i]);
+    // Annotations: a range, a label that needs escaping, and one on the release day (stacked labels)
+    $note = $db->prepare("INSERT INTO annotations (site, date, end_date, label, created_at) VALUES ('demo.example.com', ?, ?, ?, datetime('now'))");
+    $note->execute([date('Y-m-d', strtotime('-6 days')), date('Y-m-d', strtotime('-4 days')), 'Smoke campaign']);
+    $note->execute([date('Y-m-d', strtotime('-2 days')), null, 'Say "hi" <b>bold</b>']);
+    $note->execute([date('Y-m-d'), null, 'Smoke film']);
   `, dbPath]);
 
   // 4. Headless Chrome with remote debugging
@@ -178,6 +183,12 @@ async function main() {
       document.querySelectorAll('.event-detail').forEach((d) => d.remove());
     }
     expect(window.__xss === undefined, 'no injected script ran');
+    const notes = [...document.querySelectorAll('#chart-card .chart-note')];
+    expect(notes.length === 3, 'three annotation labels on the pageview chart');
+    expect(document.querySelectorAll('#chart-card .chart-col.in-note').length === 3, 'range annotation tints its three days');
+    expect(notes.some((n) => n.textContent === 'Say "hi" <b>bold</b>') && !q('#chart-card .chart-note b'), 'annotation label is escaped');
+    expect(q('#chart-card .chart-note.stacked') && q('#chart-card .chart-scroll.stacked-marks'), 'annotation and release on one day stack');
+    expect(!q('.note-toggle'), 'no + Note button on a shared dashboard');
 
     // Accessibility: tabs pattern, dialog focus handling
     const tablist = q('.card-tabs[role="tablist"]');
@@ -305,6 +316,26 @@ async function main() {
     add.click();
     await waitFor(() => [...document.querySelectorAll('.goal-row')].some((r) => r.textContent.includes('pwa_install') && r.textContent.includes('No hits yet')), 'unseen event goal shows No hits yet', 8000);
     if (q('.menu-close').getAttribute('aria-label') !== 'Close settings') fails.push('settings close button is labelled');
+
+    // Annotations: + Note creates, Settings relabels and removes
+    window.closeMenu();
+    const toggle = q('.note-toggle');
+    if (!toggle) { fails.push('+ Note button on the chart'); return fails; }
+    toggle.click();
+    const form = q('#note-form');
+    if (form.hidden || document.activeElement !== form.elements.label) fails.push('+ Note opens the form and focuses the text');
+    form.elements.label.value = 'Smoke note';
+    form.requestSubmit();
+    await waitFor(() => [...document.querySelectorAll('#chart-card .chart-note')].some((n) => /Smoke note/.test(n.title)), 'new note on the chart', 8000);
+    window.openMenu();
+    const item = [...document.querySelectorAll('#note-list .note-item')].find((i) => i.querySelector('input').value === 'Smoke note');
+    if (!item) { fails.push('note listed in Settings'); return fails; }
+    const field = item.querySelector('input');
+    field.value = 'Smoke note, clarified';
+    field.dispatchEvent(new Event('change'));
+    await waitFor(() => [...document.querySelectorAll('#chart-card .chart-note')].some((n) => /Smoke note, clarified/.test(n.title)), 'relabelled note on the chart', 8000);
+    item.querySelector('button').click();
+    await waitFor(() => ![...document.querySelectorAll('#chart-card .chart-note')].some((n) => /Smoke note/.test(n.title)), 'removed note leaves the chart', 8000);
     return fails;
   };
   const result2 = await send('Runtime.evaluate', { expression: `(${loggedIn.toString()})()`, awaitPromise: true, returnByValue: true });
@@ -318,7 +349,7 @@ async function main() {
     failures.forEach((f) => console.error('  - ' + f));
     process.exitCode = 1;
   } else {
-    console.log('Dashboard smoke test passed: load, release markers, breakdown card and its details, hostile names render as text, entry page bounce, keyboard drill-down, group by version, funnel incl. unseen event, compare, 90 days, light theme, logged-in goal for an unseen event, tabs pattern, dialog focus trap, status announcements. No JS errors.');
+    console.log('Dashboard smoke test passed: load, release markers, breakdown card and its details, hostile names render as text, entry page bounce, annotations (shared view, add, relabel, remove), keyboard drill-down, group by version, funnel incl. unseen event, compare, 90 days, light theme, logged-in goal for an unseen event, tabs pattern, dialog focus trap, status announcements. No JS errors.');
   }
 }
 

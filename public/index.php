@@ -200,6 +200,33 @@ if ((isset($_GET['breakdown_add']) || isset($_GET['breakdown_remove'])) && $_SER
     respond(json_encode(['ok' => true]), 200, 'application/json');
 }
 
+// Annotations: hand-set markers on a date or date range (a film, a mention, a fair), shown on charts
+if ((isset($_GET['annotation_add']) || isset($_GET['annotation_update']) || isset($_GET['annotation_remove'])) && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    require_auth();
+    $input = json_decode(file_get_contents('php://input'), true) ?: [];
+    $anSite = substr((string) ($input['site'] ?? ''), 0, 200);
+    if ($anSite === '') respond('', 400);
+    require_site_access($config, $anSite);
+    $db = get_db($config['db_path']);
+    $label = mb_substr(trim((string) ($input['label'] ?? '')), 0, 100);
+    $id = (int) ($input['id'] ?? 0);
+    if (isset($_GET['annotation_add'])) {
+        $isDate = fn($d) => is_string($d) && ($t = DateTime::createFromFormat('!Y-m-d', $d)) && $t->format('Y-m-d') === $d;
+        $date = $input['date'] ?? '';
+        $endDate = ($input['end_date'] ?? '') ?: null;
+        if (!$isDate($date) || ($endDate !== null && (!$isDate($endDate) || $endDate < $date)) || $label === '') respond('', 400);
+        $db->prepare('INSERT INTO annotations (site, date, end_date, label, created_at) VALUES (?, ?, ?, ?, ?)')
+            ->execute([$anSite, $date, $endDate, $label, date('Y-m-d H:i:s')]);
+        $id = (int) $db->lastInsertId();
+    } elseif (isset($_GET['annotation_update'])) {
+        if ($label === '') respond('', 400);
+        $db->prepare('UPDATE annotations SET label = ? WHERE site = ? AND id = ?')->execute([$label, $anSite, $id]);
+    } else {
+        $db->prepare('DELETE FROM annotations WHERE site = ? AND id = ?')->execute([$anSite, $id]);
+    }
+    respond(json_encode(['ok' => true, 'id' => $id]), 200, 'application/json');
+}
+
 if (isset($_GET['api'])) {
     require_auth();
     $user = get_current_user_data($config);
@@ -961,6 +988,12 @@ function get_api_data(array $config, array $user): string
     $stmt->execute(array_merge([$since], $until ? [$until] : [], $siteParams));
     $versions = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+    // Annotations that overlap the period (a range may start before it)
+    $annotationsUntil = $until ? 'AND date < ?' : '';
+    $stmt = $db->prepare("SELECT id, site, date, end_date, label FROM annotations WHERE COALESCE(end_date, date) >= ? {$annotationsUntil} {$siteFilter} ORDER BY date, id");
+    $stmt->execute(array_merge([$since], $until ? [$until] : [], $siteParams));
+    $annotations = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
     // Funnel (?event=a&then=b): of the visitors who did A, how many did B at or
     // after their first A. visitor_hash rotates daily, so a funnel spans one day.
     $funnel = null;
@@ -1028,6 +1061,7 @@ function get_api_data(array $config, array $user): string
             'eventNames' => $eventNames,
             'funnel' => $funnel,
             'versions' => $versions,
+            'annotations' => $annotations,
         ], JSON_INVALID_UTF8_SUBSTITUTE);
     }
 
@@ -1437,6 +1471,7 @@ function get_api_data(array $config, array $user): string
         'goals'     => $goals,
         'breakdowns' => $breakdowns,
         'versions'  => $versions,
+        'annotations' => $annotations,
         'siteOverview' => $siteOverview ?? [],
         'brokenLinks' => $brokenLinks,
         'events'    => $events,
@@ -1797,7 +1832,7 @@ function normalize_path(string $path): string
 
 function run_migrations(PDO $db): void
 {
-    $currentVersion = 18; // Bump this when adding new migrations
+    $currentVersion = 19; // Bump this when adding new migrations
 
     // Use SQLite's built-in PRAGMA user_version (per-database, no external file)
     $version = (int) $db->query('PRAGMA user_version')->fetchColumn();
@@ -2152,6 +2187,19 @@ function run_migrations(PDO $db): void
             created_at TEXT NOT NULL
         )');
         $db->exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_breakdowns_unique ON breakdowns (site, event_name, group_key)');
+    }
+
+    // v19: annotations (hand-set chart markers, optional end_date for a range)
+    if ($version < 19) {
+        $db->exec('CREATE TABLE IF NOT EXISTS annotations (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            site TEXT NOT NULL,
+            date TEXT NOT NULL,
+            end_date TEXT,
+            label TEXT NOT NULL,
+            created_at TEXT NOT NULL
+        )');
+        $db->exec('CREATE INDEX IF NOT EXISTS idx_annotations_site_date ON annotations (site, date)');
     }
 
     $db->exec('PRAGMA user_version = ' . $currentVersion);

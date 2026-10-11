@@ -962,6 +962,80 @@ test('breakdown endpoints are limited to the user\'s sites', function () {
     expect($status)->toBe(403);
 });
 
+test('annotation endpoints require auth', function () {
+    $opts = [
+        'header' => "Content-Type: application/json",
+        'content' => json_encode(['site' => 'test', 'date' => date('Y-m-d'), 'label' => 'x', 'id' => 1]),
+    ];
+    expect(http('POST', '/?annotation_add', $opts)['status'])->toBe(401)
+        ->and(http('POST', '/?annotation_update', $opts)['status'])->toBe(401)
+        ->and(http('POST', '/?annotation_remove', $opts)['status'])->toBe(401);
+});
+
+test('annotations can be added, relabeled and removed on the user\'s sites', function () {
+    $cookie = restrictedSession();
+    $post = fn (string $endpoint, array $body) => http('POST', $endpoint, [
+        'header' => "Content-Type: application/json\r\n{$cookie}",
+        'content' => json_encode($body),
+    ], 8090);
+    $label = 'film ' . uniqid();
+    $db = getTestDb();
+
+    try {
+        expect($post('/?annotation_add', ['site' => 'not-my-site', 'date' => '2026-10-03', 'label' => $label])['status'])->toBe(403)
+            ->and($post('/?annotation_add', ['site' => 'test', 'date' => 'yesterday', 'label' => $label])['status'])->toBe(400)
+            ->and($post('/?annotation_add', ['site' => 'test', 'date' => '2026-10-03', 'end_date' => '2026-10-01', 'label' => $label])['status'])->toBe(400)
+            ->and($post('/?annotation_add', ['site' => 'test', 'date' => '2026-10-03', 'label' => '  '])['status'])->toBe(400);
+
+        $r = $post('/?annotation_add', ['site' => 'test', 'date' => '2026-10-03', 'end_date' => '2026-10-09', 'label' => $label . str_repeat('x', 200)]);
+        expect($r['status'])->toBe(200);
+        $id = json_decode($r['body'], true)['id'];
+        $row = $db->query('SELECT * FROM annotations WHERE id = ' . (int) $id)->fetch(PDO::FETCH_ASSOC);
+        expect($row['site'])->toBe('test')
+            ->and($row['date'])->toBe('2026-10-03')
+            ->and($row['end_date'])->toBe('2026-10-09')
+            ->and(mb_strlen($row['label']))->toBe(100);
+
+        // Another site's id is not reachable through a site the user has
+        expect($post('/?annotation_update', ['site' => 'not-my-site', 'id' => $id, 'label' => 'nope'])['status'])->toBe(403);
+        $db->exec("UPDATE annotations SET site = 'other-site' WHERE id = " . (int) $id);
+        $post('/?annotation_update', ['site' => 'test', 'id' => $id, 'label' => 'nope']);
+        $post('/?annotation_remove', ['site' => 'test', 'id' => $id]);
+        expect($db->query('SELECT label FROM annotations WHERE id = ' . (int) $id)->fetchColumn())->not->toBe('nope');
+        $db->exec("UPDATE annotations SET site = 'test' WHERE id = " . (int) $id);
+
+        expect($post('/?annotation_update', ['site' => 'test', 'id' => $id, 'label' => 'Film on Facebook and Instagram'])['status'])->toBe(200)
+            ->and($db->query('SELECT label FROM annotations WHERE id = ' . (int) $id)->fetchColumn())->toBe('Film on Facebook and Instagram');
+
+        expect($post('/?annotation_remove', ['site' => 'test', 'id' => $id])['status'])->toBe(200)
+            ->and($db->query('SELECT COUNT(*) FROM annotations WHERE id = ' . (int) $id)->fetchColumn())->toBe(0);
+    } finally {
+        $db->prepare('DELETE FROM annotations WHERE label LIKE ?')->execute([$label . '%']);
+    }
+});
+
+test('api returns annotations that overlap the period, scoped to the site', function () {
+    $site = 'annotations-' . uniqid();
+    $db = getTestDb();
+    $insert = $db->prepare('INSERT INTO annotations (site, date, end_date, label, created_at) VALUES (?, ?, ?, ?, ?)');
+    $day = fn (int $ago) => date('Y-m-d', strtotime("-{$ago} days"));
+    $insert->execute([$site, $day(2), null, 'single day', date('Y-m-d H:i:s')]);
+    $insert->execute([$site, $day(10), $day(5), 'campaign into the period', date('Y-m-d H:i:s')]);
+    $insert->execute([$site, $day(20), $day(10), 'before the period', date('Y-m-d H:i:s')]);
+    $insert->execute([$site . '-other', $day(2), null, 'other site', date('Y-m-d H:i:s')]);
+
+    $token = createTestShareToken($site);
+    $data = json_decode(http('GET', '/?api&days=7&share=' . $token)['body'], true);
+    expect(array_column($data['annotations'], 'label'))->toBe(['campaign into the period', 'single day'])
+        ->and($data['annotations'][0])->toHaveKeys(['id', 'date', 'end_date', 'label'])
+        ->and($data['annotations'][0]['end_date'])->toBe($day(5))
+        ->and($data['annotations'][1]['end_date'])->toBeNull();
+
+    // A custom range that ends before the single day leaves it out
+    $data = json_decode(http('GET', '/?api&from=' . $day(9) . '&to=' . $day(3) . '&share=' . $token)['body'], true);
+    expect(array_column($data['annotations'], 'label'))->toBe(['campaign into the period']);
+});
+
 test('share API with path filter does not crash on events table', function () {
     // Regression: events table has page_path, not path — using $pathFilter caused SQL error
     $token = createTestShareToken('test');

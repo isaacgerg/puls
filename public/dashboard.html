@@ -44,6 +44,7 @@
     --green: #059669; --green-bg: #ecfdf5;
     --red: #dc2626; --red-bg: #fef2f2;
     --subtle: #f1f5f9;
+    --note: #0e7490; --note-band: rgba(25,172,202,0.10);
     --radius: 14px;
   }
   [data-theme="dark"] {
@@ -53,6 +54,7 @@
     --green: #34d399; --green-bg: rgba(52,211,153,0.1);
     --red: #f87171; --red-bg: rgba(248,113,113,0.1);
     --subtle: #334155; --calendar-icon-filter: invert(1);
+    --note: #22d3ee; --note-band: rgba(34,211,238,0.10);
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
@@ -62,6 +64,7 @@
       --green: #34d399; --green-bg: rgba(52,211,153,0.1);
       --red: #f87171; --red-bg: rgba(248,113,113,0.1);
       --subtle: #334155; --calendar-icon-filter: invert(1);
+      --note: #22d3ee; --note-band: rgba(34,211,238,0.10);
     }
   }
   body {
@@ -310,6 +313,19 @@
   .chart-col.has-release .chart-val { position: relative; z-index: 1; background: var(--card); padding: 0 3px; border-radius: 3px; }
   .chart-release::after { content: ''; position: absolute; left: 50%; top: 100%; height: 16px; border-left: 1px solid var(--accent); }
   .chart-release { position: absolute; top: -30px; left: 50%; transform: translateX(-50%); z-index: 2; font-size: 9px; font-weight: 600; line-height: 14px; color: var(--accent); background: var(--card); border: 1px solid var(--accent); border-radius: 4px; padding: 0 4px; white-space: nowrap; }
+  .chart-col.has-note { position: relative; background: linear-gradient(var(--note), var(--note)) center top / 1px calc(100% - 18px) no-repeat; background-clip: content-box; }
+  .chart-col.has-note.has-release { background-image: linear-gradient(var(--accent), var(--accent)); }
+  .chart-col.has-note .chart-val { position: relative; z-index: 1; background: var(--card); padding: 0 3px; border-radius: 3px; }
+  .chart-col.in-note { background-color: var(--note-band); border-radius: 4px; }
+  .chart-note { position: absolute; top: -30px; left: 50%; transform: translateX(-50%); z-index: 2; font-size: 9px; font-weight: 600; line-height: 14px; color: var(--note); background: var(--card); border: 1px solid var(--note); border-radius: 4px; padding: 0 4px; white-space: nowrap; max-width: 160px; overflow: hidden; text-overflow: ellipsis; }
+  .chart-note.stacked { top: -48px; }
+  /* Edge days: anchor the label to the chart edge so it is not clipped */
+  .chart-col:first-child > .chart-note { left: 0; transform: none; }
+  .chart-col:last-child > .chart-note { left: auto; right: 0; transform: none; }
+  .chart-scroll.stacked-marks { padding-top: 48px; }
+  .chart-scroll.compare.stacked-marks { padding-top: 98px; }
+  .event-chart.chart-scroll.stacked-marks { padding-top: 52px; }
+  .event-chart.chart-scroll.compare.stacked-marks { padding-top: 62px; }
   .chart-bars { display: flex; align-items: flex-end; gap: 3px; width: 100%; height: 100%; }
   .chart-bar-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; justify-content: flex-end; height: 100%; min-width: 0; }
   .chart-bar-wrap .chart-bar { width: 100%; }
@@ -320,6 +336,22 @@
   .chart-legend-dot { width: 10px; height: 10px; border-radius: 2px; }
   .chart-compare-toggle { background: none; border: 1px solid var(--border); color: var(--muted); padding: 4px 10px; border-radius: 6px; font-size: 11px; cursor: pointer; font-family: inherit; transition: all 0.15s; margin-left: 8px; }
   .chart-compare-toggle:hover { color: var(--text); border-color: var(--accent); }
+  .note-form { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; padding: 0 4px 12px; font-size: 11px; color: var(--muted); }
+  .note-form[hidden] { display: none; }
+  .note-form label { display: flex; flex-direction: column; gap: 3px; }
+  .note-form .note-form-text { flex: 1; min-width: 180px; }
+  .note-form input, .note-item input { padding: 5px 8px; border-radius: 6px; border: 1px solid var(--border); background: var(--card); color: var(--text); font-size: 12px; font-family: inherit; }
+  .note-form input[type="date"]::-webkit-calendar-picker-indicator { filter: var(--calendar-icon-filter, none); }
+  .note-form input:focus, .note-item input:focus { outline: none; border-color: var(--note); box-shadow: 0 0 0 3px var(--note-band); }
+  .note-form button { padding: 5px 12px; border-radius: 6px; border: 1px solid var(--border); background: none; color: var(--muted); font-size: 12px; font-family: inherit; cursor: pointer; }
+  .note-form button[type="submit"] { border-color: var(--note); color: var(--note); }
+  .note-list { display: flex; flex-direction: column; gap: 6px; }
+  .note-list:empty::after { content: 'No notes in this period'; font-size: 11px; color: var(--light); }
+  .note-item { display: flex; align-items: center; gap: 6px; }
+  .note-item-date { font-size: 11px; color: var(--light); white-space: nowrap; }
+  .note-item input { flex: 1; min-width: 0; }
+  .note-item button { background: none; border: none; color: var(--light); cursor: pointer; font-size: 16px; line-height: 1; padding: 2px 4px; border-radius: 4px; }
+  .note-item button:hover { color: var(--red); }
   .chart-compare-toggle.active { color: var(--accent); border-color: var(--accent); background: var(--subtle); }
 
   /* Grid */
@@ -815,6 +847,10 @@
       </button>
     </div>
   </div>
+  <div class="menu-section" id="notes-section" style="display:none">
+    <span class="menu-label" id="notes-label">Chart notes</span>
+    <div class="note-list" id="note-list" aria-labelledby="notes-label"></div>
+  </div>
   <div class="menu-section" id="goals-section" style="display:none">
     <span class="menu-label">Goals</span>
     <input type="text" class="goal-search" id="goal-search" placeholder="Search pages or events..." aria-label="Search pages or events for conversion goal" autocomplete="off" spellcheck="false">
@@ -1042,7 +1078,7 @@
     var domainEdited = domain && domain.value !== utmDomain();
     return (utmState && utmState.source) || (path && path.value) || (campaign && campaign.value) || domainEdited;
   }
-  setInterval(function() { if (!utmWizardActive() && !(document.activeElement && document.activeElement.isContentEditable)) load(currentDays); }, 60000);
+  setInterval(function() { if (!utmWizardActive() && !noteFormOpen() && !(document.activeElement && document.activeElement.isContentEditable)) load(currentDays); }, 60000);
 
   // --- Render ---
   var lastData = null;
@@ -1508,31 +1544,58 @@
         '</div>' +
         '<span class="card-subtitle">' + siteName + ' — last ' + currentDays + ' days' +
           (hasCompare ? '<button class="chart-compare-toggle' + (compareMode ? ' active' : '') + '" onclick="toggleCompareMode(this)">Compare</button>' : '') +
+          (noteSite() ? '<button class="chart-compare-toggle note-toggle" aria-expanded="false" aria-controls="note-form" onclick="toggleNoteForm()">+ Note</button>' : '') +
         '</span>' +
       '</div>' +
+      (noteSite() ? renderNoteForm() : '') +
       (compareMode && hasCompare ? '<div class="chart-legend" style="padding:0 4px 10px">' +
         '<div class="chart-legend-item"><span class="chart-legend-dot" style="background:var(--accent)"></span>Current period</div>' +
         '<div class="chart-legend-item"><span class="chart-legend-dot" style="background:var(--border)"></span>Previous period</div>' +
       '</div>' : '') +
-      '<div class="chart-scroll' + (compareMode && hasCompare ? ' compare' : '') + '"><div class="chart">' + buildBars(d.pageviews, d.previousPageviews) + '</div></div>' +
+      '<div class="chart-scroll' + (compareMode && hasCompare ? ' compare' : '') + (marksFor(d, d.pageviews.map(function(p) { return p.date; })).stacked ? ' stacked-marks' : '') + '"><div class="chart">' + buildBars(d.pageviews, d.previousPageviews) + '</div></div>' +
     '</div>';
   }
 
-  // date -> release marker html for app versions first seen that day
-  function releaseMarkers(versions) {
-    var byDate = {};
-    (versions || []).forEach(function(v) { (byDate[v.first_seen] = byDate[v.first_seen] || []).push(v.version); });
-    var out = {};
-    Object.keys(byDate).forEach(function(date) {
-      var list = byDate[date];
-      out[date] = '<span class="chart-release" title="First seen: ' + esc(list.join(', ')) + '">' + esc(list[list.length - 1]) + (list.length > 1 ? ' +' + (list.length - 1) : '') + '</span>';
+  // Chart markers per date: release markers for app versions first seen that day, and
+  // annotations. A range annotation tints every day it covers and is labelled on its first
+  // visible day. Returns { byDate: date -> { cls, html }, stacked } where stacked means
+  // some day has both kinds of label, so the chart needs room for two rows.
+  function chartMarkers(dates, versions, annotations) {
+    var releases = {}, notes = {}, band = {};
+    (versions || []).forEach(function(v) { (releases[v.first_seen] = releases[v.first_seen] || []).push(v.version); });
+    (annotations || []).forEach(function(a) {
+      var end = a.end_date || a.date;
+      var covered = dates.filter(function(d) { return d >= a.date && d <= end; });
+      if (!covered.length) return;
+      (notes[covered[0]] = notes[covered[0]] || []).push(a);
+      if (a.end_date) covered.forEach(function(d) { band[d] = true; });
     });
-    return out;
+    var byDate = {}, stacked = false;
+    dates.forEach(function(date) {
+      var cls = '', html = '', rel = releases[date], list = notes[date];
+      if (rel) {
+        cls += ' has-release';
+        html += '<span class="chart-release" title="First seen: ' + esc(rel.join(', ')) + '">' + esc(rel[rel.length - 1]) + (rel.length > 1 ? ' +' + (rel.length - 1) : '') + '</span>';
+      }
+      if (list) {
+        cls += ' has-note';
+        if (rel) stacked = true;
+        var title = list.map(function(a) { return formatDay(a.date) + (a.end_date ? ' to ' + formatDay(a.end_date) : '') + ': ' + a.label; }).join('\n');
+        html += '<span class="chart-note' + (rel ? ' stacked' : '') + '" title="' + esc(title) + '">' + esc(list[0].label) + (list.length > 1 ? ' +' + (list.length - 1) : '') + '</span>';
+      }
+      if (band[date]) cls += ' in-note';
+      if (cls) byDate[date] = { cls: cls, html: html };
+    });
+    return { byDate: byDate, stacked: stacked };
+  }
+
+  function marksFor(d, dates) {
+    return chartMarkers(dates, d && d.versions, d && d.annotations);
   }
 
   function buildBars(pageviews, previousPageviews) {
     var key = chartMode === 'visitors' ? 'visitors' : 'views';
-    var releases = releaseMarkers(lastData && lastData.versions);
+    var marks = marksFor(lastData, pageviews.map(function(p) { return p.date; })).byDate;
     var showCompare = compareMode && previousPageviews && previousPageviews.length > 0;
     var allVals = pageviews.map(function(p) { return +p[key]; });
     if (showCompare) {
@@ -1561,8 +1624,8 @@
           (prev ? '<div style="color:var(--light);margin-top:2px">vs ' + prevLabel + ': ' + num(prev.views) + ' / ' + num(prev.visitors) + '</div>' : '') +
         '</div>';
 
-        bars += '<div class="chart-col chart-col-compare' + (releases[p.date] ? ' has-release' : '') + '">' +
-          (releases[p.date] || '') +
+        bars += '<div class="chart-col chart-col-compare' + (marks[p.date] ? marks[p.date].cls : '') + '">' +
+          (marks[p.date] ? marks[p.date].html : '') +
           combinedTip +
           '<div class="chart-bars">' +
             '<div class="chart-bar-wrap">' +
@@ -1577,8 +1640,8 @@
           '<span class="chart-date">' + label + '</span>' +
         '</div>';
       } else {
-        bars += '<div class="chart-col' + (releases[p.date] ? ' has-release' : '') + '">' +
-          (releases[p.date] || '') +
+        bars += '<div class="chart-col' + (marks[p.date] ? marks[p.date].cls : '') + '">' +
+          (marks[p.date] ? marks[p.date].html : '') +
           '<span class="chart-val">' + num(p[key]) + '</span>' +
           '<div class="chart-bar" style="height:' + h + 'px">' +
             '<div class="tip">' + label + ': ' + num(p.views) + ' views, ' + num(p.visitors) + ' visitors</div>' +
@@ -2672,8 +2735,8 @@
         '<button class="event-chip' + (eventChartMode === 'rate' ? ' active' : '') + '" data-mode="rate" onclick="setEventChartMode(this)">Per 100 visitors</button>' +
         (showCompare ? '<span class="event-chips-label" style="margin-left:auto">vs previous period</span>' : '') +
       '</div>' +
-      '<div class="chart-scroll event-chart' + (showCompare ? ' compare' : '') + (dense ? ' dense' : '') + '"><div class="chart">' +
-        buildEventBars(d.eventSeries, showCompare ? d.previousEventSeries : null, d.pageviews, d.previousPageviews, dense, d.versions) +
+      '<div class="chart-scroll event-chart' + (showCompare ? ' compare' : '') + (dense ? ' dense' : '') + (marksFor(d, d.eventSeries.map(function(r) { return r.date; })).stacked ? ' stacked-marks' : '') + '"><div class="chart">' +
+        buildEventBars(d.eventSeries, showCompare ? d.previousEventSeries : null, d.pageviews, d.previousPageviews, dense, d) +
       '</div></div>';
     }
 
@@ -2740,8 +2803,8 @@
     return html;
   }
 
-  function buildEventBars(series, prevSeries, pageviews, previousPageviews, dense, versions) {
-    var releases = releaseMarkers(versions);
+  function buildEventBars(series, prevSeries, pageviews, previousPageviews, dense, d) {
+    var marks = marksFor(d, series.map(function(r) { return r.date; })).byDate;
     var visitorsByDate = {};
     (pageviews || []).concat(previousPageviews || []).forEach(function(p) { visitorsByDate[p.date] = +p.visitors; });
     function val(row) {
@@ -2769,8 +2832,8 @@
         var p = prevSeries[i], pv = p ? val(p) : 0, ph = p ? Math.max(3, (pv / maxVal) * 60) : 0;
         var delta = pv > 0 ? Math.round(((v - pv) / pv) * 100) : null;
         var deltaStr = delta === null ? '' : (delta >= 0 ? ' (+' + delta + '%)' : ' (' + delta + '%)');
-        bars += '<div class="chart-col chart-col-compare' + (releases[row.date] ? ' has-release' : '') + '">' +
-          (releases[row.date] || '') +
+        bars += '<div class="chart-col chart-col-compare' + (marks[row.date] ? marks[row.date].cls : '') + '">' +
+          (marks[row.date] ? marks[row.date].html : '') +
           '<div class="tip" style="text-align:left"><div style="font-weight:600;margin-bottom:4px">' + label + '<span style="color:' + (delta === null ? '#64748b' : (delta >= 0 ? '#059669' : '#dc2626')) + ';font-weight:500">' + deltaStr + '</span></div>' +
             '<div>' + tipBody + '</div>' +
             (p ? '<div style="color:var(--light);margin-top:2px">vs ' + formatDay(p.date) + ': ' + num(p.count) + ' / ' + num(p.visitors) + '</div>' : '') +
@@ -2782,8 +2845,8 @@
           dateHtml +
         '</div>';
       } else {
-        bars += '<div class="chart-col' + (releases[row.date] ? ' has-release' : '') + '">' +
-          (releases[row.date] || '') +
+        bars += '<div class="chart-col' + (marks[row.date] ? marks[row.date].cls : '') + '">' +
+          (marks[row.date] ? marks[row.date].html : '') +
           valHtml +
           '<div class="chart-bar" style="height:' + h + 'px"><div class="tip">' + label + ': ' + tipBody + '</div></div>' +
           dateHtml +
@@ -2912,6 +2975,7 @@
     menuOverlay.classList.add('open');
     menuPanel.classList.add('open');
     populateGoalPicker();
+    populateNotes();
     dialogOpened(menuPanel);
   };
 
@@ -2925,6 +2989,112 @@
   document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape' && menuPanel.classList.contains('open')) closeMenu();
   });
+
+  // --- Chart notes (annotations): "+ Note" on the chart creates, Settings edits and removes ---
+  function noteSite() {
+    if (isShared) return '';
+    return currentSite || (sites.length === 1 ? sites[0] : '');
+  }
+
+  function noteFormOpen() {
+    var f = document.getElementById('note-form');
+    return !!(f && !f.hidden);
+  }
+
+  function ymd(date) {
+    return date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0') + '-' + String(date.getDate()).padStart(2, '0');
+  }
+
+  function renderNoteForm() {
+    var yesterday = ymd(new Date(Date.now() - 86400000));
+    return '<form class="note-form" id="note-form" hidden onsubmit="saveNote(event)">' +
+      '<label>Date<input type="date" name="date" required value="' + yesterday + '" max="' + ymd(new Date()) + '"></label>' +
+      '<label>Until (optional)<input type="date" name="end_date"></label>' +
+      '<label class="note-form-text">Note<input type="text" name="label" required maxlength="100" placeholder="What happened, e.g. a film on Facebook"></label>' +
+      '<button type="submit">Save</button>' +
+      '<button type="button" onclick="toggleNoteForm()">Cancel</button>' +
+    '</form>';
+  }
+
+  window.toggleNoteForm = function() {
+    var form = document.getElementById('note-form');
+    var btn = document.querySelector('.note-toggle');
+    if (!form) return;
+    form.hidden = !form.hidden;
+    if (btn) btn.setAttribute('aria-expanded', String(!form.hidden));
+    if (!form.hidden) form.elements.label.focus();
+    else if (btn) btn.focus();
+  };
+
+  window.saveNote = function(e) {
+    e.preventDefault();
+    var form = e.target;
+    var date = form.elements.date.value, end = form.elements.end_date.value;
+    if (end && end < date) {
+      form.elements.end_date.setCustomValidity('Must be on or after the date');
+      form.reportValidity();
+      form.elements.end_date.setCustomValidity('');
+      return;
+    }
+    form.querySelector('button[type="submit"]').disabled = true;
+    fetch(apiUrl('?annotation_add'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ site: noteSite(), date: date, end_date: end, label: form.elements.label.value })
+    }).then(function(r) {
+      if (!r.ok) throw new Error('Could not save note');
+      announce('Note added');
+      form.hidden = true;
+      load(currentDays);
+    }).catch(function() {
+      form.querySelector('button[type="submit"]').disabled = false;
+      announce('Could not save the note');
+    });
+  };
+
+  var notesSection = document.getElementById('notes-section');
+  var noteList = document.getElementById('note-list');
+
+  function populateNotes() {
+    if (isShared || !lastData) { notesSection.style.display = 'none'; return; }
+    notesSection.style.display = '';
+    noteList.innerHTML = (lastData.annotations || []).map(function(a) {
+      var when = formatDay(a.date) + (a.end_date ? ' to ' + formatDay(a.end_date) : '');
+      return '<div class="note-item" data-id="' + (+a.id) + '" data-site="' + esc(a.site) + '">' +
+        '<span class="note-item-date">' + esc(when) + '</span>' +
+        '<input type="text" maxlength="100" value="' + esc(a.label) + '" aria-label="Note for ' + esc(when) + '" onchange="updateNote(this)">' +
+        '<button type="button" aria-label="Remove note for ' + esc(when) + '" onclick="removeNote(this)">&times;</button>' +
+      '</div>';
+    }).join('');
+  }
+
+  function postNote(endpoint, item, extra) {
+    var body = { site: item.getAttribute('data-site'), id: +item.getAttribute('data-id') };
+    Object.keys(extra || {}).forEach(function(k) { body[k] = extra[k]; });
+    return fetch(apiUrl(endpoint), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    }).then(function(r) { if (!r.ok) throw new Error(); load(currentDays); });
+  }
+
+  window.updateNote = function(input) {
+    var label = input.value.trim();
+    if (!label) return;
+    postNote('?annotation_update', input.closest('.note-item'), { label: label })
+      .then(function() { announce('Note updated'); }, function() { announce('Could not update the note'); });
+  };
+
+  window.removeNote = function(btn) {
+    var item = btn.closest('.note-item');
+    postNote('?annotation_remove', item)
+      .then(function() {
+        var next = item.nextElementSibling || item.previousElementSibling;
+        item.remove();
+        (next ? next.querySelector('input') : menuPanel.querySelector('.menu-close')).focus();
+        announce('Note removed');
+      }, function() { announce('Could not remove the note'); });
+  };
 
   // --- Goal picker in menu ---
   var goalSection = document.getElementById('goals-section');

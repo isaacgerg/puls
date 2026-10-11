@@ -30,6 +30,9 @@ Single PHP entry point (`public/index.php`) handles all routing:
 | `POST /?login` | No | Login form submission |
 | `POST /?breakdown_add` | Yes | Save or rename an event breakdown card |
 | `POST /?breakdown_remove` | Yes | Remove a breakdown card |
+| `POST /?annotation_add` | Yes | Add a chart note on a date or date range |
+| `POST /?annotation_update` | Yes | Change a chart note's text |
+| `POST /?annotation_remove` | Yes | Remove a chart note |
 | `GET /?logout` | Yes | End session |
 
 Static file requests (anything with `.` in path) return 404 early to prevent routing conflicts (e.g. favicon.ico triggering CSRF token regeneration).

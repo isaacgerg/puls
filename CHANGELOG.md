@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ### Added
 
 - Bounce rate per entry page. `entryPages` in the API gains `bounces` and `bounceRate`, the dashboard shows the rate next to each entry page, and the CSV export has both columns. Same definition as the site bounce rate (visitors with a single pageview), so the bounces across entry pages add up to the site figure.
+- Chart notes. Mark a date, or a date range with an optional end date, with a short text such as "Film on Facebook", so spikes without a referrer stay explainable later. **+ Note** on the pageview chart adds one; Settings changes the text or removes it. A single day shows as a line, a range as a tinted band, in a different colour from release markers and stacked above them on the same day. Notes are per site, appear on event trends and on shared dashboards (read-only), and are in the API as `annotations`. Migration v19 adds the `annotations` table, and `sites:rename`/`sites:remove` include it.
 
 ### Changed
 

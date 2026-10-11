@@ -44,6 +44,7 @@ Puls is designed to be GDPR-friendly without consent banners:
 - **Trend indicators** — comparison with previous period (▲12%)
 - **Bounce rate & session length** — median session duration, inverted bounce trend
 - **Entry/exit pages** — see where visitors land and leave, with bounce rate per entry page
+- **Chart notes** — mark a day or a date range (a film, a mention, a fair) so spikes stay explainable later
 - **Summary insights** — best day, peak hour, top page, top source
 - **Realtime** — "N online now" badge (last 5 min)
 - **Dark mode** — System/Dark/Light theme
