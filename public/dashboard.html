@@ -1200,7 +1200,15 @@
     }
 
     if (!isShared) html += renderTools(d.site);
+    // The 60 s refresh redraws the same period: keep a chart the viewer scrolled back in
+    var chartKey = [currentSite, currentDays, currentFrom, currentTo, currentPath, currentChannel].join('|');
+    var oldScroll = app.querySelector('#chart-card .chart-scroll');
+    var keepLeft = oldScroll && chartKey === lastChartKey && oldScroll.scrollLeft + oldScroll.clientWidth < oldScroll.scrollWidth - 1 ? oldScroll.scrollLeft : null;
+    lastChartKey = chartKey;
     app.innerHTML = html;
+    showLatestDays(app);
+    var newScroll = app.querySelector('#chart-card .chart-scroll');
+    if (keepLeft !== null && newScroll) newScroll.scrollLeft = keepLeft;
 
     activeTabs.forEach(function(id) {
       var tab = document.querySelector('.card-tab[data-tab="' + id + '"]');
@@ -1554,6 +1562,12 @@
       '</div>' : '') +
       '<div class="chart-scroll' + (compareMode && hasCompare ? ' compare' : '') + (marksFor(d, d.pageviews.map(function(p) { return p.date; })).stacked ? ' stacked-marks' : '') + '"><div class="chart">' + buildBars(d.pageviews, d.previousPageviews) + '</div></div>' +
     '</div>';
+  }
+
+  // A long period is wider than the card and scrolls; open it on the latest days
+  var lastChartKey = '';
+  function showLatestDays(root) {
+    root.querySelectorAll('.chart-scroll').forEach(function(el) { el.scrollLeft = el.scrollWidth; });
   }
 
   // Chart markers per date: release markers for app versions first seen that day, and
@@ -2762,6 +2776,7 @@
       html += renderEventRecent(d.eventDetail || []);
     }
     detail.innerHTML = html;
+    showLatestDays(detail);
   }
 
   // Two-step funnel: of the visitors who did this event, how many did the chosen one after it
