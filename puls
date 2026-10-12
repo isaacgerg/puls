@@ -12,6 +12,7 @@
  *   php puls sites:list                          List all tracked sites
  *   php puls sites:rename [<old> <new>]             Rename a site
  *   php puls sites:remove [<name>]                 Delete all data for a site
+ *   php puls sites:clean-paths [<site>] [--query|--keep=a,b] [--ids] [--dry-run]  Strip query strings / collapse ids in stored paths
  *   php puls share:create <site> [--label=...] [--expires=YYYY-MM-DD]  Create shareable link
  *   php puls share:list [<site>]                  List share tokens
  *   php puls share:revoke [<token>]                Revoke a share token
@@ -30,6 +31,7 @@ match ($command) {
     'sites:list'    => sitesList($config['db_path']),
     'sites:rename'  => sitesRename($config, $argv[2] ?? null, $argv[3] ?? null),
     'sites:remove'  => sitesRemove($config, $argv[2] ?? null),
+    'sites:clean-paths' => sitesCleanPaths($config, $argv),
     'share:create'  => shareCreate($config, $argv[2] ?? null, $argv),
     'share:list'    => shareList($config, $argv[2] ?? null),
     'share:revoke'  => shareRevoke($config, $argv[2] ?? null),
@@ -440,6 +442,155 @@ function sitesRename(array $config, ?string $oldName, ?string $newName): void
     }
 
     echo "\nRenamed '{$oldName}' → '{$newName}'.\n";
+}
+
+// =====================================================================
+// sites:clean-paths
+// =====================================================================
+
+/**
+ * Clean a stored path: drop the query string except $keep (when $keep is not
+ * null) and collapse purely numeric segments to :id (when $ids is set).
+ * Splits on & by hand so parameter names and values stay exactly as stored.
+ */
+function cleanPath(string $path, ?array $keep, bool $ids): string
+{
+    [$base, $query] = array_pad(explode('?', $path, 2), 2, null);
+    if ($ids) {
+        $base = preg_replace('#/\d+(?=/|$)#', '/:id', $base);
+    }
+    if ($query === null) return $base;
+    if ($keep === null) return $base . '?' . $query;
+    $kept = array_filter(explode('&', $query), function ($pair) use ($keep) {
+        $name = urldecode(explode('=', $pair, 2)[0]);
+        return $name !== '' && in_array($name, $keep, true);
+    });
+    return $kept ? $base . '?' . implode('&', $kept) : $base;
+}
+
+function sitesCleanPaths(array $config, array $argv): void
+{
+    $dbPath = $config['db_path'];
+    if (!file_exists($dbPath)) {
+        echo "No database found.\n";
+        exit(1);
+    }
+
+    $siteName = null;
+    $keep = null;
+    $ids = false;
+    $dryRun = false;
+    foreach (array_slice($argv, 2) as $arg) {
+        if ($arg === '--dry-run') {
+            $dryRun = true;
+        } elseif ($arg === '--query') {
+            $keep ??= [];
+        } elseif (str_starts_with($arg, '--keep=')) {
+            $keep = array_values(array_filter(array_map('trim', explode(',', substr($arg, 7)))));
+        } elseif ($arg === '--ids') {
+            $ids = true;
+        } elseif (!str_starts_with($arg, '--')) {
+            $siteName = $arg;
+        }
+    }
+
+    $db = new PDO('sqlite:' . $dbPath);
+    $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+
+    // Interactive site picker and options if no argument; confirm before writing
+    $interactive = !$siteName;
+    if ($interactive) {
+        $availableSites = getTrackedSites($dbPath);
+        if (empty($availableSites)) {
+            echo "No sites tracked yet.\n";
+            exit(1);
+        }
+        echo "Select site to clean paths for:\n";
+        foreach ($availableSites as $i => $s) {
+            echo sprintf("  %d) %s\n", $i + 1, $s);
+        }
+        $idx = (int) prompt("\nSelect (number): ") - 1;
+        if ($idx < 0 || $idx >= count($availableSites)) {
+            echo "Invalid selection.\n";
+            exit(1);
+        }
+        $siteName = $availableSites[$idx];
+        if ($keep === null && strtolower(prompt("Strip query strings? [Y/n]: ")) !== 'n') {
+            $keepInput = prompt("Parameters to keep (comma-separated, empty for none): ");
+            $keep = array_values(array_filter(array_map('trim', explode(',', $keepInput))));
+        }
+        if (!$ids) {
+            $ids = strtolower(prompt("Collapse numeric segments to :id? [y/N]: ")) === 'y';
+        }
+    }
+
+    if ($keep === null && !$ids) {
+        echo "Nothing selected. Use --query (or --keep=a,b) and/or --ids.\n";
+        exit(1);
+    }
+
+    $stmt = $db->prepare('SELECT COUNT(*) FROM pageviews WHERE site = ?');
+    $stmt->execute([$siteName]);
+    if ((int) $stmt->fetchColumn() === 0) {
+        echo "Site '{$siteName}' not found in database.\n";
+        exit(1);
+    }
+
+    // Table => path column. Skip tables a not-yet-migrated database does not have.
+    $columns = ['pageviews' => 'path', 'events' => 'page_path'];
+    $existing = $db->query("SELECT name FROM sqlite_master WHERE type = 'table'")->fetchAll(PDO::FETCH_COLUMN);
+
+    $changes = [];
+    foreach (array_intersect_key($columns, array_flip($existing)) as $table => $column) {
+        $match = [];
+        if ($keep !== null) $match[] = "instr({$column}, '?') > 0";
+        if ($ids) $match[] = "{$column} GLOB '*/[0-9]*'";
+        $stmt = $db->prepare("SELECT id, {$column} AS path FROM {$table} WHERE site = ? AND (" . implode(' OR ', $match) . ")");
+        $stmt->execute([$siteName]);
+        foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $cleaned = cleanPath($row['path'], $keep, $ids);
+            if ($cleaned !== $row['path']) {
+                $changes[$table][] = [$row['id'], $cleaned];
+            }
+        }
+    }
+
+    $what = [];
+    if ($keep !== null) $what[] = 'query strings' . ($keep ? ' (keeping ' . implode(', ', $keep) . ')' : '');
+    if ($ids) $what[] = 'numeric ids';
+    echo "Paths to clean in '{$siteName}', " . implode(' and ', $what) . ":\n";
+    foreach (array_keys($columns) as $table) {
+        $n = count($changes[$table] ?? []);
+        echo "  {$table}: {$n} rows\n";
+    }
+
+    if (!$changes) {
+        echo "\nNothing to clean.\n";
+        return;
+    }
+    if ($dryRun) {
+        echo "\nDry run, nothing changed.\n";
+        return;
+    }
+    if ($interactive) {
+        $confirm = prompt("\nRewrite these rows? This cannot be undone. [y/N]: ");
+        if (strtolower($confirm) !== 'y') {
+            echo "Cancelled.\n";
+            return;
+        }
+    }
+
+    $db->beginTransaction();
+    foreach ($changes as $table => $rows) {
+        $column = $columns[$table];
+        $stmt = $db->prepare("UPDATE {$table} SET {$column} = ? WHERE id = ?");
+        foreach ($rows as [$id, $path]) {
+            $stmt->execute([$path, $id]);
+        }
+    }
+    $db->commit();
+
+    echo "\nCleaned paths for '{$siteName}'.\n";
 }
 
 // =====================================================================
@@ -942,6 +1093,7 @@ function printHelp(): void
       php puls sites:list                      List all tracked sites
       php puls sites:rename [<old> <new>]       Rename a site
       php puls sites:remove [<name>]           Delete all data for a site
+      php puls sites:clean-paths [<site>]      Strip query strings / collapse ids in stored paths
       php puls share:create <site> [options]   Create a shareable dashboard link
       php puls share:list [<site>]             List share tokens
       php puls share:revoke [<token>]           Revoke a share token
@@ -951,6 +1103,10 @@ function printHelp(): void
       --sites    Comma-separated list of sites the user can access.
       --label    Label for share token (e.g. "Client report Q1").
       --expires  Expiry date for share token (YYYY-MM-DD).
+      --query    Strip query strings from stored paths.
+      --keep     Like --query, but keep these parameters (e.g. page,tab).
+      --ids      Collapse numeric path segments to :id (/lead/1234 -> /lead/:id).
+      --dry-run  Show what would change without writing.
 
     HELP;
     echo "\n";

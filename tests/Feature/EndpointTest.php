@@ -871,6 +871,18 @@ test('js snippet sends data-version with pageviews and events', function () {
         ->and($body)->toContain('app_version');
 });
 
+test('js snippet can drop query strings with data-query', function () {
+    $body = http('GET', '/?js')['body'];
+    expect($body)->toContain('dataset.query')
+        ->and($body)->toContain("qk==='none'");
+});
+
+test('js snippet can collapse numeric path segments with data-collapse-ids', function () {
+    $body = http('GET', '/?js')['body'];
+    expect($body)->toContain('dataset.collapseIds')
+        ->and($body)->toContain("'/:id'");
+});
+
 test('api returns saved breakdowns grouped like the drill-down', function () {
     $name = 'saved_bd_' . uniqid();
     foreach ([['kale', 'Chrome/120.0'], ['kale', 'Firefox/130.0'], ['rhubarb', 'Safari/605.1']] as [$q, $ua]) {
