@@ -1,12 +1,12 @@
 <?php
 
 /**
- * Tests for the sites:strip-query CLI command.
+ * Tests for the sites:clean-paths CLI command.
  *
  * Runs CLI as subprocess with env overrides for DB_PATH and USERS_FILE.
  */
 
-function createStripQueryDb(string $path): PDO
+function createCleanPathsDb(string $path): PDO
 {
     $db = new PDO('sqlite:' . $path);
     $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
@@ -32,7 +32,7 @@ function createStripQueryDb(string $path): PDO
     return $db;
 }
 
-function runStripQuery(string $tmpDir, array $args): array
+function runCleanPaths(string $tmpDir, array $args): array
 {
     $puls = realpath(__DIR__ . '/../../puls');
 
@@ -41,7 +41,7 @@ function runStripQuery(string $tmpDir, array $args): array
         . "\$_ENV['DB_PATH'] = " . var_export($tmpDir . '/test.sqlite', true) . ";\n"
         . "\$_ENV['USERS_FILE'] = " . var_export($tmpDir . '/users.json', true) . ";\n"
         . "\$_ENV['APP_KEY'] = 'test-key';\n"
-        . "\$argv = " . var_export(array_merge(['puls', 'sites:strip-query'], $args), true) . ";\n"
+        . "\$argv = " . var_export(array_merge(['puls', 'sites:clean-paths'], $args), true) . ";\n"
         . "\$argc = count(\$argv);\n"
         . "require " . var_export($puls, true) . ";\n"
     );
@@ -75,13 +75,13 @@ afterEach(function () {
 });
 
 it('strips query strings from pageviews and events of one site', function () {
-    $db = createStripQueryDb($this->dbPath);
+    $db = createCleanPathsDb($this->dbPath);
     $db->exec("INSERT INTO pageviews (site, path) VALUES ('intra', '/search?q=abc123&regnr=ABC123')");
     $db->exec("INSERT INTO pageviews (site, path) VALUES ('intra', '/about')");
     $db->exec("INSERT INTO pageviews (site, path) VALUES ('other', '/search?q=keep')");
     $db->exec("INSERT INTO events (site, event_name, page_path, visitor_hash) VALUES ('intra', 'click', '/lead?seller=x', 'h')");
 
-    $result = runStripQuery($this->tmpDir, ['intra']);
+    $result = runCleanPaths($this->tmpDir, ['intra', '--query']);
 
     expect($result['exit'])->toBe(0);
     expect($result['output'])->toContain('pageviews: 1 rows');
@@ -94,21 +94,21 @@ it('strips query strings from pageviews and events of one site', function () {
 });
 
 it('keeps only the parameters named in --keep', function () {
-    $db = createStripQueryDb($this->dbPath);
+    $db = createCleanPathsDb($this->dbPath);
     $db->exec("INSERT INTO pageviews (site, path) VALUES ('intra', '/list?page=2&q=secret&tab=open')");
     $db->exec("INSERT INTO pageviews (site, path) VALUES ('intra', '/list?q=secret')");
 
-    $result = runStripQuery($this->tmpDir, ['intra', '--keep=page,tab']);
+    $result = runCleanPaths($this->tmpDir, ['intra', '--keep=page,tab']);
 
     expect($result['exit'])->toBe(0);
     expect(pathsFor($this->dbPath, 'intra'))->toBe(['/list?page=2&tab=open', '/list']);
 });
 
 it('changes nothing with --dry-run', function () {
-    $db = createStripQueryDb($this->dbPath);
+    $db = createCleanPathsDb($this->dbPath);
     $db->exec("INSERT INTO pageviews (site, path) VALUES ('intra', '/search?q=abc')");
 
-    $result = runStripQuery($this->tmpDir, ['intra', '--dry-run']);
+    $result = runCleanPaths($this->tmpDir, ['intra', '--query', '--dry-run']);
 
     expect($result['exit'])->toBe(0);
     expect($result['output'])->toContain('pageviews: 1 rows');
@@ -116,22 +116,61 @@ it('changes nothing with --dry-run', function () {
     expect(pathsFor($this->dbPath, 'intra'))->toBe(['/search?q=abc']);
 });
 
-it('reports when there is nothing to strip', function () {
-    $db = createStripQueryDb($this->dbPath);
+it('reports when there is nothing to clean', function () {
+    $db = createCleanPathsDb($this->dbPath);
     $db->exec("INSERT INTO pageviews (site, path) VALUES ('intra', '/about')");
 
-    $result = runStripQuery($this->tmpDir, ['intra']);
+    $result = runCleanPaths($this->tmpDir, ['intra', '--query']);
 
     expect($result['exit'])->toBe(0);
-    expect($result['output'])->toContain('Nothing to strip.');
+    expect($result['output'])->toContain('Nothing to clean.');
 });
 
 it('fails for an unknown site', function () {
-    $db = createStripQueryDb($this->dbPath);
+    $db = createCleanPathsDb($this->dbPath);
     $db->exec("INSERT INTO pageviews (site, path) VALUES ('intra', '/about')");
 
-    $result = runStripQuery($this->tmpDir, ['nope']);
+    $result = runCleanPaths($this->tmpDir, ['nope', '--query']);
 
     expect($result['exit'])->toBe(1);
     expect($result['output'])->toContain("Site 'nope' not found in database.");
+});
+
+it('collapses numeric segments with --ids', function () {
+    $db = createCleanPathsDb($this->dbPath);
+    $db->exec("INSERT INTO pageviews (site, path) VALUES ('intra', '/lead/1234')");
+    $db->exec("INSERT INTO pageviews (site, path) VALUES ('intra', '/goal-management/location/8/edit')");
+    $db->exec("INSERT INTO pageviews (site, path) VALUES ('intra', '/v2-api/2026-report')");
+    $db->exec("INSERT INTO pageviews (site, path) VALUES ('intra', '/lead/77?q=secret')");
+    $db->exec("INSERT INTO events (site, event_name, page_path, visitor_hash) VALUES ('intra', 'open', '/lead/55', 'h')");
+
+    $result = runCleanPaths($this->tmpDir, ['intra', '--ids']);
+
+    expect($result['exit'])->toBe(0);
+    expect($result['output'])->toContain('pageviews: 3 rows');
+    expect(pathsFor($this->dbPath, 'intra'))->toBe(['/lead/:id', '/goal-management/location/:id/edit', '/v2-api/2026-report', '/lead/:id?q=secret']);
+
+    $db = new PDO('sqlite:' . $this->dbPath);
+    expect($db->query("SELECT page_path FROM events")->fetchColumn())->toBe('/lead/:id');
+});
+
+it('combines --query and --ids in one pass', function () {
+    $db = createCleanPathsDb($this->dbPath);
+    $db->exec("INSERT INTO pageviews (site, path) VALUES ('intra', '/lead/77?q=secret')");
+
+    $result = runCleanPaths($this->tmpDir, ['intra', '--query', '--ids']);
+
+    expect($result['exit'])->toBe(0);
+    expect(pathsFor($this->dbPath, 'intra'))->toBe(['/lead/:id']);
+});
+
+it('requires --query, --keep or --ids', function () {
+    $db = createCleanPathsDb($this->dbPath);
+    $db->exec("INSERT INTO pageviews (site, path) VALUES ('intra', '/lead/1?q=x')");
+
+    $result = runCleanPaths($this->tmpDir, ['intra']);
+
+    expect($result['exit'])->toBe(1);
+    expect($result['output'])->toContain('Nothing selected.');
+    expect(pathsFor($this->dbPath, 'intra'))->toBe(['/lead/1?q=x']);
 });

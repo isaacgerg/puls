@@ -10,7 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ### Added
 
 - `data-query` on the tracking script controls which query strings are sent with pageviews. `data-query="none"` drops them, `data-query="page,tab"` keeps only the listed parameters. The filtering happens in the browser, so the dropped values never reach Puls. Without the attribute nothing changes. Use it on sites where URLs can carry personal data, such as search terms or registration numbers.
-- `php puls sites:strip-query [<site>] [--keep=a,b] [--dry-run]` removes query strings already stored in pageview paths and event page paths for one site. `--dry-run` shows the row counts without writing. Without a site it asks for one and confirms before writing.
+- `data-collapse-ids` on the tracking script sends purely numeric path segments as `:id` (`/lead/1234` becomes `/lead/:id`), for pageviews and event page paths. Apps with record ids in their URLs get one row per page type in Top pages instead of one per record. Without the attribute nothing changes.
+- `php puls sites:clean-paths [<site>] [--query|--keep=a,b] [--ids] [--dry-run]` applies the same cleaning to data already stored for one site: `--query` strips query strings (`--keep` keeps the listed parameters), `--ids` collapses numeric segments. Rewrites pageview paths and event page paths in one transaction. `--dry-run` shows the row counts without writing. Without a site it asks for one, asks what to clean and confirms before writing.
 
 ### Fixed
 
