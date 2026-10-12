@@ -12,6 +12,7 @@
  *   php puls sites:list                          List all tracked sites
  *   php puls sites:rename [<old> <new>]             Rename a site
  *   php puls sites:remove [<name>]                 Delete all data for a site
+ *   php puls sites:strip-query [<site>] [--keep=a,b] [--dry-run]  Remove query strings from stored paths
  *   php puls share:create <site> [--label=...] [--expires=YYYY-MM-DD]  Create shareable link
  *   php puls share:list [<site>]                  List share tokens
  *   php puls share:revoke [<token>]                Revoke a share token
@@ -30,6 +31,7 @@ match ($command) {
     'sites:list'    => sitesList($config['db_path']),
     'sites:rename'  => sitesRename($config, $argv[2] ?? null, $argv[3] ?? null),
     'sites:remove'  => sitesRemove($config, $argv[2] ?? null),
+    'sites:strip-query' => sitesStripQuery($config, $argv),
     'share:create'  => shareCreate($config, $argv[2] ?? null, $argv),
     'share:list'    => shareList($config, $argv[2] ?? null),
     'share:revoke'  => shareRevoke($config, $argv[2] ?? null),
@@ -440,6 +442,128 @@ function sitesRename(array $config, ?string $oldName, ?string $newName): void
     }
 
     echo "\nRenamed '{$oldName}' → '{$newName}'.\n";
+}
+
+// =====================================================================
+// sites:strip-query
+// =====================================================================
+
+/**
+ * Remove a query string from a path, keeping only the named parameters.
+ * Splits on & by hand so parameter names and values stay exactly as stored.
+ */
+function stripQuery(string $path, array $keep): string
+{
+    if (!str_contains($path, '?')) return $path;
+    [$base, $query] = explode('?', $path, 2);
+    $kept = array_filter(explode('&', $query), function ($pair) use ($keep) {
+        $name = urldecode(explode('=', $pair, 2)[0]);
+        return $name !== '' && in_array($name, $keep, true);
+    });
+    return $kept ? $base . '?' . implode('&', $kept) : $base;
+}
+
+function sitesStripQuery(array $config, array $argv): void
+{
+    $dbPath = $config['db_path'];
+    if (!file_exists($dbPath)) {
+        echo "No database found.\n";
+        exit(1);
+    }
+
+    $siteName = null;
+    $keep = [];
+    $dryRun = false;
+    foreach (array_slice($argv, 2) as $arg) {
+        if ($arg === '--dry-run') {
+            $dryRun = true;
+        } elseif (str_starts_with($arg, '--keep=')) {
+            $keep = array_values(array_filter(array_map('trim', explode(',', substr($arg, 7)))));
+        } elseif (!str_starts_with($arg, '--')) {
+            $siteName = $arg;
+        }
+    }
+
+    $db = new PDO('sqlite:' . $dbPath);
+    $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+
+    // Interactive site picker if no argument; confirm before writing
+    $interactive = !$siteName;
+    if ($interactive) {
+        $availableSites = getTrackedSites($dbPath);
+        if (empty($availableSites)) {
+            echo "No sites tracked yet.\n";
+            exit(1);
+        }
+        echo "Select site to strip query strings from:\n";
+        foreach ($availableSites as $i => $s) {
+            echo sprintf("  %d) %s\n", $i + 1, $s);
+        }
+        $idx = (int) prompt("\nSelect (number): ") - 1;
+        if ($idx < 0 || $idx >= count($availableSites)) {
+            echo "Invalid selection.\n";
+            exit(1);
+        }
+        $siteName = $availableSites[$idx];
+    }
+
+    $stmt = $db->prepare('SELECT COUNT(*) FROM pageviews WHERE site = ?');
+    $stmt->execute([$siteName]);
+    if ((int) $stmt->fetchColumn() === 0) {
+        echo "Site '{$siteName}' not found in database.\n";
+        exit(1);
+    }
+
+    // Table => path column. Skip tables a not-yet-migrated database does not have.
+    $columns = ['pageviews' => 'path', 'events' => 'page_path'];
+    $existing = $db->query("SELECT name FROM sqlite_master WHERE type = 'table'")->fetchAll(PDO::FETCH_COLUMN);
+
+    $changes = [];
+    foreach (array_intersect_key($columns, array_flip($existing)) as $table => $column) {
+        $stmt = $db->prepare("SELECT id, {$column} AS path FROM {$table} WHERE site = ? AND instr({$column}, '?') > 0");
+        $stmt->execute([$siteName]);
+        foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $stripped = stripQuery($row['path'], $keep);
+            if ($stripped !== $row['path']) {
+                $changes[$table][] = [$row['id'], $stripped];
+            }
+        }
+    }
+
+    $keepLabel = $keep ? ' (keeping ' . implode(', ', $keep) . ')' : '';
+    echo "Query strings in '{$siteName}'{$keepLabel}:\n";
+    foreach (array_keys($columns) as $table) {
+        $n = count($changes[$table] ?? []);
+        echo "  {$table}: {$n} rows\n";
+    }
+
+    if (!$changes) {
+        echo "\nNothing to strip.\n";
+        return;
+    }
+    if ($dryRun) {
+        echo "\nDry run, nothing changed.\n";
+        return;
+    }
+    if ($interactive) {
+        $confirm = prompt("\nRewrite these rows? This cannot be undone. [y/N]: ");
+        if (strtolower($confirm) !== 'y') {
+            echo "Cancelled.\n";
+            return;
+        }
+    }
+
+    $db->beginTransaction();
+    foreach ($changes as $table => $rows) {
+        $column = $columns[$table];
+        $stmt = $db->prepare("UPDATE {$table} SET {$column} = ? WHERE id = ?");
+        foreach ($rows as [$id, $path]) {
+            $stmt->execute([$path, $id]);
+        }
+    }
+    $db->commit();
+
+    echo "\nStripped query strings from '{$siteName}'.\n";
 }
 
 // =====================================================================
@@ -942,6 +1066,7 @@ function printHelp(): void
       php puls sites:list                      List all tracked sites
       php puls sites:rename [<old> <new>]       Rename a site
       php puls sites:remove [<name>]           Delete all data for a site
+      php puls sites:strip-query [<site>]      Remove query strings from stored paths
       php puls share:create <site> [options]   Create a shareable dashboard link
       php puls share:list [<site>]             List share tokens
       php puls share:revoke [<token>]           Revoke a share token
@@ -951,6 +1076,8 @@ function printHelp(): void
       --sites    Comma-separated list of sites the user can access.
       --label    Label for share token (e.g. "Client report Q1").
       --expires  Expiry date for share token (YYYY-MM-DD).
+      --keep     Query parameters to keep when stripping (e.g. page,tab).
+      --dry-run  Show what would change without writing.
 
     HELP;
     echo "\n";
