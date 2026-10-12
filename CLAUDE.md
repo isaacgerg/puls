@@ -72,6 +72,7 @@ docker-compose.yml      — One-command setup with volume for /app/data
 - **Self-contained dashboard** — no build tools, no CDN, works offline after load
 - **Privacy-first** — daily-rotating visitor hash (IP + UA + APP_KEY salt), no cookies, no PII stored
 - **Forge auto-detection** — `resolve_path()` in config.php detects `/releases/\d+/` pattern and resolves to site root
+- **Sender owns the data** - Puls gives sites the controls (`data-query`, no PII in `puls.track`) and documents the risks, but does not inspect, mask or audit what they send. Masking was considered and declined: pattern matching would silently damage legitimate paths and give false confidence
 - **Data quality** — normalize_path strips tracking params (fbclid, gclid, utm_*), normalize_referrer groups social domains, IDN decode
 
 ## Development
