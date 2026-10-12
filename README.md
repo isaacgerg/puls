@@ -151,6 +151,7 @@ This tracks pageviews and outbound link clicks automatically. Works with Next.js
 | `data-auto-events` | No | Auto-track phone clicks, email clicks, downloads, form submissions |
 | `data-debug` | No | Log every pageview and event to the browser console |
 | `data-version` | No | App version sent with every pageview and event, shown as release markers in charts |
+| `data-query` | No | Query strings to send: `none` drops them, `page,tab` keeps only the listed parameters. Without it the full query string is sent (tracking parameters like `utm_*` are always stripped). Use it when URLs can carry personal data, e.g. search terms |
 | `defer` | Recommended | Load script without blocking page render |
 
 ### Custom Events
@@ -188,6 +189,7 @@ php puls share:create <site> --label="Client Q1" --expires=2026-06-30
 php puls share:list                      # List all share tokens
 php puls share:revoke <token>            # Revoke a share token
 php puls sites:remove <name>             # Delete all data for a site
+php puls sites:strip-query <site>        # Remove query strings from stored paths (--keep=a,b, --dry-run)
 php puls nginx:config                    # Generate Nginx config for a site
 ```
 

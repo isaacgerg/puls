@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- `data-query` on the tracking script controls which query strings are sent with pageviews. `data-query="none"` drops them, `data-query="page,tab"` keeps only the listed parameters. The filtering happens in the browser, so the dropped values never reach Puls. Without the attribute nothing changes. Use it on sites where URLs can carry personal data, such as search terms or registration numbers.
+- `php puls sites:strip-query [<site>] [--keep=a,b] [--dry-run]` removes query strings already stored in pageview paths and event page paths for one site. `--dry-run` shows the row counts without writing. Without a site it asks for one and confirms before writing.
+
 ### Fixed
 
 - Charts for long periods (30 or 90 days on a normal screen) are wider than the card and scroll. They opened on the oldest days, so the latest days and their markers were out of view. They now open on the latest days; scroll left for older ones. The 60-second refresh keeps the position of a chart you scrolled back in.
