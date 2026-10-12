@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ### Fixed
 
 - Charts for long periods (30 or 90 days on a normal screen) are wider than the card and scroll. They opened on the oldest days, so the latest days and their markers were out of view. They now open on the latest days; scroll left for older ones. The 60-second refresh keeps the position of a chart you scrolled back in.
+- Hovering a chart bar showed its tooltip behind the bar value and the release or note labels. The tooltip is now on top.
+- The line of a release marker or note showed as a short stub between the bar and the date. It now ends behind the bar.
 
 ## [1.22.0] — 2026-10-12
 
