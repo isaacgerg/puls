@@ -23,13 +23,14 @@ Puls automatically tracks:
 | `data-version="2.6.0"` | App version on every pageview and event, shown as release markers ([more](#app-version)) |
 | `data-query="none"` | Query strings to send: `none` drops them, `page,tab` keeps only those parameters ([more](#keeping-personal-data-out-of-urls)) |
 | `data-collapse-ids` | Sends numeric path segments as `:id`, so `/lead/1234` becomes `/lead/:id` ([more](#keeping-personal-data-out-of-urls)) |
+| `data-collapse-tokens` | Sends token segments (cuid, UUID and similar ids) as `:token`, so `/movement/ckx3abc...` becomes `/movement/:token` ([more](#keeping-personal-data-out-of-urls)) |
 | `data-path="/:token"` | Path to send instead of the page URL ([more](#keeping-personal-data-out-of-urls)) |
 | `data-debug` | Logs every pageview and event to the console ([more](#debug-mode)) |
 
 ### Checklist for a new site or app
 
 1. Add the script tag with `data-site`. The site appears in Puls as soon as its first pageview arrives.
-2. Look at your URLs. If any carry search terms, filters with names, record ids or personal links, add `data-query`, `data-collapse-ids` or `data-path` before going live (see below).
+2. Look at your URLs. If any carry search terms, filters with names, record ids or personal links, add `data-query`, `data-collapse-ids`, `data-collapse-tokens` or `data-path` before going live (see below).
 3. If you deploy with versions, add `data-version` so releases show on the charts.
 4. Add `puls.track` calls for the actions that matter (signups, searches, form results), following the [naming and data conventions](#naming-and-data-conventions).
 5. Create users or share links with the CLI: `php puls user:add client --sites=my-site` or `php puls share:create my-site`. A share link also gives read-only [API access](api.md).
@@ -52,6 +53,8 @@ The filtering happens in the browser, so the dropped values never reach Puls. Ca
 
 **Record ids.** Apps with ids in their URLs get one Top pages row per record. `data-collapse-ids` sends purely numeric segments as `:id`, so `/lead/1234/edit` becomes `/lead/:id/edit`. Segments that only contain digits as part of a word, such as `/2026-report`, are left alone.
 
+**Token ids.** Apps that use cuids, UUIDs or similar generated ids get the same one-row-per-record problem. `data-collapse-tokens` sends such segments as `:token`, so `/movement/ckx3abc9def0ghi1jkl2mno3p` becomes `/movement/:token`. A token is a whole segment of 16 or more letters and digits containing both, or a UUID: the same rule as `sites:clean-paths --tokens`. Words and hyphenated slugs are left alone. It works in single-page apps, since every view is checked, and can be combined with `data-collapse-ids`.
+
 **Personal links.** Some pages are reached through a link that is itself a key, such as `/{token}` for a customer's claim or a password reset. `data-path` replaces the path Puls receives, for pageviews and events. Set it on those pages only:
 
 ```blade
@@ -59,7 +62,7 @@ The filtering happens in the browser, so the dropped values never reach Puls. Ca
 <script defer src="https://your-puls-domain/?js" data-site="claims" data-path="/:token"></script>
 ```
 
-`data-path` is fixed for the page. In a single-page app it would be sent for every view, so use it on server-rendered pages. If you also use the `<noscript>` pixel, send the same value there (`p=/:token`), since the pixel does not run the script.
+`data-path` is fixed for the page. In a single-page app it would be sent for every view, so use it on server-rendered pages, and use `data-collapse-tokens` in single-page apps. If you also use the `<noscript>` pixel, send the same value there (`p=/:token`), since the pixel does not run the script.
 
 **Data already stored.** If a site has sent this kind of data before, clean it with the CLI. It works per site and always shows the row counts first with `--dry-run`:
 

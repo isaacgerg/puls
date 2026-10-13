@@ -153,6 +153,7 @@ This tracks pageviews and outbound link clicks automatically. Works with Next.js
 | `data-version` | No | App version sent with every pageview and event, shown as release markers in charts |
 | `data-query` | No | Query strings to send: `none` drops them, `page,tab` keeps only the listed parameters. Without it the full query string is sent (tracking parameters like `utm_*` are always stripped). Use it when URLs can carry personal data, e.g. search terms |
 | `data-collapse-ids` | No | Send numeric path segments as `:id` (`/lead/1234` becomes `/lead/:id`), so apps with record ids get one row per page type instead of one per record |
+| `data-collapse-tokens` | No | Send token segments as `:token` (cuids, UUIDs and other ids of 16+ letters and digits), for apps with generated ids in their URLs. Works in single-page apps |
 | `data-path` | No | Path to send instead of the page URL, e.g. `/:token` on pages whose URL holds a personal link. Applies to pageviews and events. Set it per page; in a single-page app it stays the same across views |
 | `defer` | Recommended | Load script without blocking page render |
 
@@ -173,7 +174,7 @@ Full documentation in [docs/integrations.md](docs/integrations.md):
 - Server-side bot tracking (Nginx mirror)
 - Reverse proxy setup and rate limiting
 
-Keeping personal data out of tracked URLs (`data-query`, `data-collapse-ids`, `data-path`): [docs/integrations.md](docs/integrations.md#keeping-personal-data-out-of-urls).
+Keeping personal data out of tracked URLs (`data-query`, `data-collapse-ids`, `data-collapse-tokens`, `data-path`): [docs/integrations.md](docs/integrations.md#keeping-personal-data-out-of-urls).
 
 Reading the data from another application: [docs/api.md](docs/api.md) (JSON and CSV, read-only, with a share token).
 
