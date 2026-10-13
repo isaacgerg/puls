@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 - `data-collapse-tokens` on the tracking script sends token path segments as `:token` (`/movement/ckx3abc9def0ghi1jkl2mno3p` becomes `/movement/:token`), for pageviews and event page paths. A token is a whole segment of 16 or more letters and digits containing both, or a UUID, the same rule as `sites:clean-paths --tokens`. Single-page apps with cuids or UUIDs in their URLs get one Top pages row per page type, which `data-path` could not give them since it is fixed per page.
 
+### Changed
+
+- The tracking script is cached for one hour instead of 24, with an ETag. Script changes and new attributes reach every visitor within an hour, and the hourly check is answered with an empty 304 when nothing changed.
+
 ## [1.23.0] - 2026-10-13
 
 ### Added

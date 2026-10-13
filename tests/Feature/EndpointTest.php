@@ -37,6 +37,27 @@ test('js endpoint returns javascript', function () {
     expect($contentType)->toContain('javascript');
 });
 
+test('js endpoint is cached for an hour and revalidated with an etag', function () {
+    $r = http('GET', '/?js');
+    $header = fn ($name) => collect($r['headers'])->first(fn ($h) => stripos($h, "{$name}:") === 0);
+    expect($header('Cache-Control'))->toContain('max-age=3600');
+
+    $etag = trim(substr($header('ETag') ?? '', 5));
+    expect($etag)->toStartWith('"');
+
+    $same = http('GET', '/?js', ['header' => "If-None-Match: {$etag}"]);
+    expect($same['status'])->toBe(304)
+        ->and($same['body'])->toBe('');
+
+    // Nginx gzip turns the ETag weak, so browsers send it back as W/"..."
+    $weak = http('GET', '/?js', ['header' => "If-None-Match: W/{$etag}"]);
+    expect($weak['status'])->toBe(304);
+
+    $changed = http('GET', '/?js', ['header' => 'If-None-Match: "old"']);
+    expect($changed['status'])->toBe(200)
+        ->and($changed['body'])->toContain('sendBeacon');
+});
+
 test('js endpoint drains events queued before the script loaded', function () {
     $r = http('GET', '/?js');
     expect($r['body'])->toContain('prev.q')

@@ -218,7 +218,7 @@ From customer integrations. Traffic per channel and campaign exists; what happen
 
 - [ ] **Release marker edge clipping** — `.chart-release` labels clip at the edge on narrow screens (fixed for chart notes, not for release markers)
 - [ ] **Remove dead `renderTable()`** — no callers in dashboard.html
-- [ ] **Shorter cache for the tracking script** — `?js` is cached 24 h, so new attributes take up to a day to reach every visitor
+- [x] **Shorter cache for the tracking script** — `?js` was cached 24 h, so new attributes took up to a day to reach every visitor. Now 1 h plus an ETag, so the hourly check is a bodyless 304
 - [ ] **Dashboard performance at scale** — 30-day dashboard ~17 s on a 2M-pageview benchmark; real copies of customer data in `data/` can serve as benchmark data
 
 ---
