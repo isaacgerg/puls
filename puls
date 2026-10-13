@@ -12,7 +12,7 @@
  *   php puls sites:list                          List all tracked sites
  *   php puls sites:rename [<old> <new>]             Rename a site
  *   php puls sites:remove [<name>]                 Delete all data for a site
- *   php puls sites:clean-paths [<site>] [--query|--keep=a,b] [--ids] [--dry-run]  Strip query strings / collapse ids in stored paths
+ *   php puls sites:clean-paths [<site>] [--query|--keep=a,b] [--ids] [--tokens] [--dry-run]  Clean stored paths
  *   php puls share:create <site> [--label=...] [--expires=YYYY-MM-DD]  Create shareable link
  *   php puls share:list [<site>]                  List share tokens
  *   php puls share:revoke [<token>]                Revoke a share token
@@ -450,12 +450,18 @@ function sitesRename(array $config, ?string $oldName, ?string $newName): void
 
 /**
  * Clean a stored path: drop the query string except $keep (when $keep is not
- * null) and collapse purely numeric segments to :id (when $ids is set).
+ * null), replace token segments with :token (when $tokens is set) and collapse
+ * purely numeric segments to :id (when $ids is set).
+ * A token is a whole segment of 16+ letters and digits containing both, or a
+ * UUID. Requiring both keeps long words and hyphenated slugs out.
  * Splits on & by hand so parameter names and values stay exactly as stored.
  */
-function cleanPath(string $path, ?array $keep, bool $ids): string
+function cleanPath(string $path, ?array $keep, bool $ids, bool $tokens = false): string
 {
     [$base, $query] = array_pad(explode('?', $path, 2), 2, null);
+    if ($tokens) {
+        $base = preg_replace('#/(?:(?=[A-Za-z0-9]*\d)(?=[A-Za-z0-9]*[A-Za-z])[A-Za-z0-9]{16,}|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})(?=/|$)#', '/:token', $base);
+    }
     if ($ids) {
         $base = preg_replace('#/\d+(?=/|$)#', '/:id', $base);
     }
@@ -479,6 +485,7 @@ function sitesCleanPaths(array $config, array $argv): void
     $siteName = null;
     $keep = null;
     $ids = false;
+    $tokens = false;
     $dryRun = false;
     foreach (array_slice($argv, 2) as $arg) {
         if ($arg === '--dry-run') {
@@ -489,6 +496,8 @@ function sitesCleanPaths(array $config, array $argv): void
             $keep = array_values(array_filter(array_map('trim', explode(',', substr($arg, 7)))));
         } elseif ($arg === '--ids') {
             $ids = true;
+        } elseif ($arg === '--tokens') {
+            $tokens = true;
         } elseif (!str_starts_with($arg, '--')) {
             $siteName = $arg;
         }
@@ -522,10 +531,13 @@ function sitesCleanPaths(array $config, array $argv): void
         if (!$ids) {
             $ids = strtolower(prompt("Collapse numeric segments to :id? [y/N]: ")) === 'y';
         }
+        if (!$tokens) {
+            $tokens = strtolower(prompt("Replace token segments with :token? [y/N]: ")) === 'y';
+        }
     }
 
-    if ($keep === null && !$ids) {
-        echo "Nothing selected. Use --query (or --keep=a,b) and/or --ids.\n";
+    if ($keep === null && !$ids && !$tokens) {
+        echo "Nothing selected. Use --query (or --keep=a,b), --ids and/or --tokens.\n";
         exit(1);
     }
 
@@ -545,10 +557,11 @@ function sitesCleanPaths(array $config, array $argv): void
         $match = [];
         if ($keep !== null) $match[] = "instr({$column}, '?') > 0";
         if ($ids) $match[] = "{$column} GLOB '*/[0-9]*'";
+        if ($tokens) $match[] = "length({$column}) > 16";
         $stmt = $db->prepare("SELECT id, {$column} AS path FROM {$table} WHERE site = ? AND (" . implode(' OR ', $match) . ")");
         $stmt->execute([$siteName]);
         foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
-            $cleaned = cleanPath($row['path'], $keep, $ids);
+            $cleaned = cleanPath($row['path'], $keep, $ids, $tokens);
             if ($cleaned !== $row['path']) {
                 $changes[$table][] = [$row['id'], $cleaned];
             }
@@ -558,7 +571,8 @@ function sitesCleanPaths(array $config, array $argv): void
     $what = [];
     if ($keep !== null) $what[] = 'query strings' . ($keep ? ' (keeping ' . implode(', ', $keep) . ')' : '');
     if ($ids) $what[] = 'numeric ids';
-    echo "Paths to clean in '{$siteName}', " . implode(' and ', $what) . ":\n";
+    if ($tokens) $what[] = 'tokens';
+    echo "Paths to clean in '{$siteName}', " . implode(', ', $what) . ":\n";
     foreach (array_keys($columns) as $table) {
         $n = count($changes[$table] ?? []);
         echo "  {$table}: {$n} rows\n";
@@ -1093,7 +1107,7 @@ function printHelp(): void
       php puls sites:list                      List all tracked sites
       php puls sites:rename [<old> <new>]       Rename a site
       php puls sites:remove [<name>]           Delete all data for a site
-      php puls sites:clean-paths [<site>]      Strip query strings / collapse ids in stored paths
+      php puls sites:clean-paths [<site>]      Strip query strings, collapse ids/tokens in stored paths
       php puls share:create <site> [options]   Create a shareable dashboard link
       php puls share:list [<site>]             List share tokens
       php puls share:revoke [<token>]           Revoke a share token
@@ -1106,6 +1120,7 @@ function printHelp(): void
       --query    Strip query strings from stored paths.
       --keep     Like --query, but keep these parameters (e.g. page,tab).
       --ids      Collapse numeric path segments to :id (/lead/1234 -> /lead/:id).
+      --tokens   Replace token segments (16+ letters and digits, or a UUID) with :token.
       --dry-run  Show what would change without writing.
 
     HELP;
