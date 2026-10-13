@@ -45,7 +45,14 @@ if (isset($_GET['health'])) {
 }
 
 if (isset($_GET['js'])) {
-    respond(get_tracking_script(), 200, 'application/javascript', ['Cache-Control' => 'public, max-age=86400']);
+    // Short max-age so script changes reach visitors within an hour; the ETag
+    // makes the hourly check a bodyless 304. Nginx gzip may weaken it to W/"…".
+    $script = get_tracking_script();
+    $etag = '"' . substr(sha1($script), 0, 16) . '"';
+    $headers = ['Cache-Control' => 'public, max-age=3600', 'ETag' => $etag];
+    $sent = array_map(fn ($t) => preg_replace('#^W/#', '', trim($t)), explode(',', $_SERVER['HTTP_IF_NONE_MATCH'] ?? ''));
+    if (in_array($etag, $sent, true)) respond('', 304, null, $headers);
+    respond($script, 200, 'application/javascript', $headers);
 }
 
 if (isset($_GET['manifest'])) {
