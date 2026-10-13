@@ -194,6 +194,33 @@ Feedback from the first SPA integration (ten named events with data). Today even
 - [x] **Longer event history** — `EVENTS_RETENTION_DAYS`, default 400 (0 = forever). Chosen over daily rollups: history does not slow queries and events are small, so keeping raw rows is simpler and keeps every detail
 - [x] **form_submit auto-event** — skip when `defaultPrevented`, read `data-puls-event` on the form for identity
 
+## Epic 15: Clean Paths (v1.23.0)
+
+Two customer sites stored personal data in paths without noticing: an internal app sent search terms, seller names and registration numbers in query strings, and a claims form sent each customer's personal link (`/{token}`). The principle, recorded in CLAUDE.md: the sender owns what it sends. Puls gives the controls and documents the risks, but does not inspect or mask data (masking was considered and declined).
+
+- [x] **`data-query`** — `none` drops query strings in the browser, `page,tab` keeps only those parameters
+- [x] **`data-collapse-ids`** — numeric segments sent as `:id` (one app went from ~4,400 distinct paths to 131)
+- [x] **`data-path`** — page sets the path Puls receives, e.g. `/:token` on personal-link pages
+- [x] **`sites:clean-paths`** — `--query`/`--keep`, `--ids`, `--tokens`, `--dry-run` for data already stored, per site
+- [x] **Meta `brid`** — per-click id stripped for Meta ad traffic only (migration v20); `media_type` kept on purpose, it is the only record of the ad format
+- [x] **Read API docs** — `docs/api.md` (share tokens, parameters, response fields, CSV) and a privacy section, attribute table and checklist in `docs/integrations.md`
+
+## Epic 16: Campaign Outcomes
+
+From customer integrations. Traffic per channel and campaign exists; what happens after the click does not. A same-campaign comparison done by hand showed video-ad visitors clicking through 10x more often than image-ad visitors, which no ad platform shows. Not decided yet.
+
+- [ ] **Events, goals and bounce per channel and campaign** — today the channel filter only affects pageview stats and hides goals. Include the Meta ad format (`media_type`) as a campaign attribute
+- [ ] **Goal with a data condition** — event + key=value, e.g. `form-success` where `type=service-booking`, or outbound clicks to one domain
+- [ ] **Path groups** — filter or group pageviews by prefix (`/workshop/*`), also as an API prefix filter
+- [ ] **Funnel with more than two steps** — same-day by design (daily visitor hash)
+
+## Maintenance
+
+- [ ] **Release marker edge clipping** — `.chart-release` labels clip at the edge on narrow screens (fixed for chart notes, not for release markers)
+- [ ] **Remove dead `renderTable()`** — no callers in dashboard.html
+- [ ] **Shorter cache for the tracking script** — `?js` is cached 24 h, so new attributes take up to a day to reach every visitor
+- [ ] **Dashboard performance at scale** — 30-day dashboard ~17 s on a 2M-pageview benchmark; real copies of customer data in `data/` can serve as benchmark data
+
 ---
 
 ## Ideas
@@ -206,3 +233,6 @@ Things to explore later — not committed to.
 - **Backup/restore CLI** — `php puls backup` / `php puls restore` for SQLite snapshots
 - **Funnels** — visualize visitor paths (landing → page → conversion)
 - **MySQL support** — optional driver via PDO adapter, SQLite remains default
+- **Numeric aggregates on event data** — sum, mean and median of a numeric key (today: send buckets)
+- **Internal-site mode** — for logged-in apps: hide referrers and campaigns, show use per week and per role
+- **API pagination** — page past 1,000 rows in `expand`
