@@ -890,6 +890,10 @@ test('js snippet can drop query strings with data-query', function () {
         ->and($body)->toContain("qk==='none'");
 });
 
+test('js snippet lets data-path replace the sent path', function () {
+    expect(http('GET', '/?js')['body'])->toContain('sc.dataset.path||location.pathname');
+});
+
 test('js snippet can collapse numeric path segments with data-collapse-ids', function () {
     $body = http('GET', '/?js')['body'];
     expect($body)->toContain('dataset.collapseIds')
