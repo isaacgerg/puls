@@ -174,3 +174,22 @@ it('requires --query, --keep or --ids', function () {
     expect($result['output'])->toContain('Nothing selected.');
     expect(pathsFor($this->dbPath, 'intra'))->toBe(['/lead/1?q=x']);
 });
+
+it('replaces token and UUID segments with --tokens', function () {
+    $db = createCleanPathsDb($this->dbPath);
+    $db->exec("INSERT INTO pageviews (site, path) VALUES ('forms', '/aB3dE5fG7hJ9kL1mN2pQ4rS6tU8vW0xY')");
+    $db->exec("INSERT INTO pageviews (site, path) VALUES ('forms', '/7c01c74b-9208-4acf-91bc-4a509f150558/done')");
+    $db->exec("INSERT INTO pageviews (site, path) VALUES ('forms', '/syab-transportservice-ab')");
+    $db->exec("INSERT INTO pageviews (site, path) VALUES ('forms', '/internationalization')");
+    $db->exec("INSERT INTO pageviews (site, path) VALUES ('forms', '/short1')");
+    $db->exec("INSERT INTO events (site, event_name, page_path, visitor_hash) VALUES ('forms', 'submit', '/aB3dE5fG7hJ9kL1mN2pQ4rS6tU8vW0xY', 'h')");
+
+    $result = runCleanPaths($this->tmpDir, ['forms', '--tokens']);
+
+    expect($result['exit'])->toBe(0);
+    expect($result['output'])->toContain('pageviews: 2 rows');
+    expect(pathsFor($this->dbPath, 'forms'))->toBe(['/:token', '/:token/done', '/syab-transportservice-ab', '/internationalization', '/short1']);
+
+    $db = new PDO('sqlite:' . $this->dbPath);
+    expect($db->query("SELECT page_path FROM events")->fetchColumn())->toBe('/:token');
+});
