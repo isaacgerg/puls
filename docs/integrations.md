@@ -13,6 +13,65 @@ Puls automatically tracks:
 - Page views (including SPA client-side navigation via `pushState`/`popstate`)
 - Referrers, UTM parameters, browsers, devices, languages
 
+### Script attributes
+
+| Attribute | What it does |
+|-----------|--------------|
+| `data-site="name"` | Site name. Separates data in a multi-site setup. Defaults to the hostname |
+| `data-outbound` | Tracks clicks on external links as `outbound_click` ([more](#outbound-link-tracking)) |
+| `data-auto-events` | Tracks phone and email clicks, downloads and form submissions ([more](#auto-event-tracking)) |
+| `data-version="2.6.0"` | App version on every pageview and event, shown as release markers ([more](#app-version)) |
+| `data-query="none"` | Query strings to send: `none` drops them, `page,tab` keeps only those parameters ([more](#keeping-personal-data-out-of-urls)) |
+| `data-collapse-ids` | Sends numeric path segments as `:id`, so `/lead/1234` becomes `/lead/:id` ([more](#keeping-personal-data-out-of-urls)) |
+| `data-path="/:token"` | Path to send instead of the page URL ([more](#keeping-personal-data-out-of-urls)) |
+| `data-debug` | Logs every pageview and event to the console ([more](#debug-mode)) |
+
+### Checklist for a new site or app
+
+1. Add the script tag with `data-site`. The site appears in Puls as soon as its first pageview arrives.
+2. Look at your URLs. If any carry search terms, filters with names, record ids or personal links, add `data-query`, `data-collapse-ids` or `data-path` before going live (see below).
+3. If you deploy with versions, add `data-version` so releases show on the charts.
+4. Add `puls.track` calls for the actions that matter (signups, searches, form results), following the [naming and data conventions](#naming-and-data-conventions).
+5. Create users or share links with the CLI: `php puls user:add client --sites=my-site` or `php puls share:create my-site`. A share link also gives read-only [API access](api.md).
+
+## Keeping personal data out of URLs
+
+Puls stores what your site sends. It does not inspect or mask data, so keeping personal data out is the sending site's job, and the script gives you the controls for it. Tracking parameters (`utm_*`, `gclid`, `fbclid` and similar) are always stripped from paths.
+
+**Query strings.** By default the full query string is sent with each pageview. If your URLs carry search terms, filters or anything typed by a user, drop them:
+
+```html
+<!-- Drop every query string -->
+<script defer src="https://your-puls-domain/?js" data-site="my-app" data-query="none"></script>
+
+<!-- Keep only page and tab, drop the rest -->
+<script defer src="https://your-puls-domain/?js" data-site="my-app" data-query="page,tab"></script>
+```
+
+The filtering happens in the browser, so the dropped values never reach Puls. Campaign detection still works: UTM and Google Ads parameters are read before the query string is dropped.
+
+**Record ids.** Apps with ids in their URLs get one Top pages row per record. `data-collapse-ids` sends purely numeric segments as `:id`, so `/lead/1234/edit` becomes `/lead/:id/edit`. Segments that only contain digits as part of a word, such as `/2026-report`, are left alone.
+
+**Personal links.** Some pages are reached through a link that is itself a key, such as `/{token}` for a customer's claim or a password reset. `data-path` replaces the path Puls receives, for pageviews and events. Set it on those pages only:
+
+```blade
+{{-- Laravel: a page reached through a personal link --}}
+<script defer src="https://your-puls-domain/?js" data-site="claims" data-path="/:token"></script>
+```
+
+`data-path` is fixed for the page. In a single-page app it would be sent for every view, so use it on server-rendered pages. If you also use the `<noscript>` pixel, send the same value there (`p=/:token`), since the pixel does not run the script.
+
+**Data already stored.** If a site has sent this kind of data before, clean it with the CLI. It works per site and always shows the row counts first with `--dry-run`:
+
+```bash
+php puls sites:clean-paths my-app --query --ids --tokens --dry-run
+php puls sites:clean-paths my-app --query --ids --tokens
+```
+
+`--query` drops query strings (`--keep=page,tab` keeps those parameters), `--ids` collapses numeric segments and `--tokens` replaces token segments (16 or more letters and digits containing both, or a UUID) with `:token`. Take a backup of the database first: the rewrite cannot be undone.
+
+**Event data.** The same rule applies to `puls.track`: send stable ids such as a department or a page type, never names, email addresses, phone numbers or user ids.
+
 ## Framework Examples
 
 ### Next.js
