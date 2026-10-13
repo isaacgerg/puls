@@ -900,6 +900,22 @@ test('js snippet can collapse numeric path segments with data-collapse-ids', fun
         ->and($body)->toContain("'/:id'");
 });
 
+test('js snippet can replace token path segments with data-collapse-tokens', function () {
+    $body = http('GET', '/?js')['body'];
+    expect($body)->toContain('dataset.collapseTokens')
+        ->and($body)->toContain("'/:token'");
+
+    // The browser pattern must match the same segments as sites:clean-paths --tokens
+    preg_match('#var tk=/(.+?)/g;#', $body, $m);
+    expect($m)->toHaveKey(1);
+    $tokens = fn($path) => preg_replace('#' . $m[1] . '#', '/:token', $path);
+    expect($tokens('/app/movement/ckx3abc9def0ghi1jkl2mno3p'))->toBe('/app/movement/:token')
+        ->and($tokens('/claim/550e8400-e29b-41d4-a716-446655440000/edit'))->toBe('/claim/:token/edit')
+        ->and($tokens('/fordonsprogrammet'))->toBe('/fordonsprogrammet')
+        ->and($tokens('/volvo-xc60-2024-recharge'))->toBe('/volvo-xc60-2024-recharge')
+        ->and($tokens('/lead/1234'))->toBe('/lead/1234');
+});
+
 test('api returns saved breakdowns grouped like the drill-down', function () {
     $name = 'saved_bd_' . uniqid();
     foreach ([['kale', 'Chrome/120.0'], ['kale', 'Firefox/130.0'], ['rhubarb', 'Safari/605.1']] as [$q, $ua]) {
