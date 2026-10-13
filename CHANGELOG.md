@@ -5,16 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [1.23.0] - 2026-10-13
 
 ### Added
 
 - `data-query` on the tracking script controls which query strings are sent with pageviews. `data-query="none"` drops them, `data-query="page,tab"` keeps only the listed parameters. The filtering happens in the browser, so the dropped values never reach Puls. Without the attribute nothing changes. Use it on sites where URLs can carry personal data, such as search terms or registration numbers.
 - `data-collapse-ids` on the tracking script sends purely numeric path segments as `:id` (`/lead/1234` becomes `/lead/:id`), for pageviews and event page paths. Apps with record ids in their URLs get one row per page type in Top pages instead of one per record. Without the attribute nothing changes.
 - `data-path` on the tracking script sets the path Puls receives instead of the page URL, for pageviews and event page paths. Use it on pages whose URL carries a personal link, e.g. `data-path="/:token"`, so the link never reaches Puls.
-- `php puls sites:clean-paths [<site>] [--query|--keep=a,b] [--ids] [--dry-run]` applies the same cleaning to data already stored for one site: `--query` strips query strings (`--keep` keeps the listed parameters), `--ids` collapses numeric segments, `--tokens` replaces token segments (16+ letters and digits containing both, or a UUID) with `:token`. Rewrites pageview paths and event page paths in one transaction. `--dry-run` shows the row counts without writing. Without a site it asks for one, asks what to clean and confirms before writing.
+- `php puls sites:clean-paths [<site>] [--query|--keep=a,b] [--ids] [--tokens] [--dry-run]` applies the same cleaning to data already stored for one site: `--query` strips query strings (`--keep` keeps the listed parameters), `--ids` collapses numeric segments, `--tokens` replaces token segments (16+ letters and digits containing both, or a UUID) with `:token`. Rewrites pageview paths and event page paths in one transaction. `--dry-run` shows the row counts without writing. Without a site it asks for one, asks what to clean and confirms before writing.
 - Meta ad clicks no longer split a page into many Top pages rows. Meta tags its ads automatically (`utm_source` fb, ig, msg or an) and appended `brid`, a value unique to each click. Puls now strips `brid` from the path for Meta traffic only, since on other traffic it can be a real query parameter. Migration v20 cleans stored pageviews the same way. Meta's `media_type` (video/image) is kept: it is the only record of which ad format a visitor came from.
-
 - Documentation: `docs/api.md` describes the read API (parameters, response fields, share tokens, CSV), and `docs/integrations.md` gains a reference of all script attributes, a checklist for new sites and a section on keeping personal data out of URLs.
 
 ### Fixed
@@ -442,6 +441,7 @@ First public release.
 - GitHub Actions on PHP 8.3 / 8.4 / 8.5
 - Pre-push hook — tests run before every push
 
+[1.23.0]: https://github.com/webready-se/puls/releases/tag/v1.23.0
 [1.22.0]: https://github.com/webready-se/puls/releases/tag/v1.22.0
 [1.21.1]: https://github.com/webready-se/puls/releases/tag/v1.21.1
 [1.21.0]: https://github.com/webready-se/puls/releases/tag/v1.21.0
