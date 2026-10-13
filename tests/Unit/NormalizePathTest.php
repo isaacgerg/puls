@@ -89,3 +89,17 @@ test('strips ved Google Search param', function () {
     $path = '/?ved=2ahUKEwjNts6us6yTAxV6FBAIHYSBI2kQgU96BAgdEAQ';
     expect(normalize_path($path))->toBe('/');
 });
+
+test('strips extra params only when asked', function () {
+    expect(normalize_path('/stock?brid=abc&page=2', ['brid']))->toBe('/stock?page=2')
+        ->and(normalize_path('/stock?brid=abc'))->toBe('/stock?brid=abc');
+});
+
+test('recognises Meta ad sources', function () {
+    expect(is_meta_source('ig'))->toBeTrue()
+        ->and(is_meta_source('fb'))->toBeTrue()
+        ->and(is_meta_source('msg'))->toBeTrue()
+        ->and(is_meta_source('an'))->toBeTrue()
+        ->and(is_meta_source('google'))->toBeFalse()
+        ->and(is_meta_source(null))->toBeFalse();
+});

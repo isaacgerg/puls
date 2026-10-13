@@ -50,7 +50,7 @@ users.json              — User credentials (bcrypt hashed, auto-created by CLI
 data/puls.sqlite        — SQLite database (auto-created, gitignored)
 composer.json           — Platform requirements (PHP 8.3+, pdo_sqlite) + dev dependencies (Pest)
 phpunit.xml             — Test configuration (Pest)
-tests/                  — Pest test suite (207 tests, unit + feature)
+tests/                  — Pest test suite (210 tests, unit + feature)
 scripts/hooks/pre-push  — Git hook: runs Pest before allowing push
 scripts/build-release.sh — Builds release zip with runtime files only
 scripts/screenshots.sh  — Generates all README screenshots (headless Chrome + demo DB)
@@ -73,7 +73,7 @@ docker-compose.yml      — One-command setup with volume for /app/data
 - **Privacy-first** — daily-rotating visitor hash (IP + UA + APP_KEY salt), no cookies, no PII stored
 - **Forge auto-detection** — `resolve_path()` in config.php detects `/releases/\d+/` pattern and resolves to site root
 - **Sender owns the data** - Puls gives sites the controls (`data-query`, no PII in `puls.track`) and documents the risks, but does not inspect, mask or audit what they send. Masking was considered and declined: pattern matching would silently damage legitimate paths and give false confidence
-- **Data quality** — normalize_path strips tracking params (fbclid, gclid, utm_*), normalize_referrer groups social domains, IDN decode
+- **Data quality** — normalize_path strips tracking params (fbclid, gclid, utm_*) and, for Meta ad traffic only, Meta's per-click brid (media_type is kept: it records the ad format); normalize_referrer groups social domains, IDN decode
 
 ## Development
 

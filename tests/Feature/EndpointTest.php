@@ -127,6 +127,19 @@ test('collect endpoint detects Google Ads params server-side', function () {
     expect($r['status'])->toBe(204);
 });
 
+test('collect strips brid from Meta ad traffic only and keeps media_type', function () {
+    $site = 'meta_' . uniqid();
+    foreach ([['ig', '/stock?media_type=video&brid=YWdncwE7'], [null, '/library?brid=abc']] as [$source, $u]) {
+        http('POST', '/?collect', [
+            'header' => "Content-Type: application/json\r\nUser-Agent: Mozilla/5.0 Chrome/120.0",
+            'content' => json_encode(['u' => $u, 'r' => '', 'w' => 400, 'site' => $site, 'utm' => $source ? ['source' => $source, 'medium' => 'paid'] : null]),
+        ]);
+    }
+    $stmt = getTestDb()->prepare('SELECT path FROM pageviews WHERE site = ? ORDER BY id');
+    $stmt->execute([$site]);
+    expect($stmt->fetchAll(PDO::FETCH_COLUMN))->toBe(['/stock?media_type=video', '/library?brid=abc']);
+});
+
 test('log endpoint tracks bot visits', function () {
     $r = http('GET', '/?log&s=test&p=/some-page', [
         'header' => 'User-Agent: Mozilla/5.0 (compatible; GPTBot/1.0; +https://openai.com/gptbot)',

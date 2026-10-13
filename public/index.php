@@ -656,7 +656,7 @@ function handle_collect(array $config): void
         $country = detect_country($_SERVER['HTTP_ACCEPT_LANGUAGE']);
     }
 
-    $path = normalize_path(urldecode(substr($input['u'], 0, 500)));
+    $path = normalize_path(urldecode(substr($input['u'], 0, 500)), is_meta_source($utmSource) ? meta_ad_params() : []);
 
     $appVersion = normalize_version($input['v'] ?? null);
     record_app_version($db, $site, $appVersion);
@@ -1808,7 +1808,7 @@ function normalize_site(string $site): string
     return $site;
 }
 
-function normalize_path(string $path): string
+function normalize_path(string $path, array $extraStrip = []): string
 {
     // Strip tracking query params (fbclid, gclid, utm_*, etc.)
     if (str_contains($path, '?')) {
@@ -1820,7 +1820,7 @@ function normalize_path(string $path): string
                    'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 'utm_id',
                    'ref', 'hsa_cam', 'hsa_grp', 'hsa_mt', 'hsa_src', 'hsa_ad', 'hsa_acc',
                    'hsa_net', 'hsa_ver', 'hsa_la', 'hsa_ol', 'hsa_kw'];
-        foreach ($strip as $key) {
+        foreach (array_merge($strip, $extraStrip) as $key) {
             unset($params[$key]);
         }
         $path = $params ? $pathPart . '?' . http_build_query($params) : $pathPart;
@@ -1834,9 +1834,26 @@ function normalize_path(string $path): string
     return $path;
 }
 
+/**
+ * Meta's automatic UTM tagging sets utm_source to fb, ig, msg or an. Meta also
+ * appends brid (one value per click) to those clicks. It is stripped only for
+ * this traffic: elsewhere the name can be a real query parameter. Meta's
+ * media_type (video/image) is kept on purpose: it is the only record of the ad
+ * format, and post-click behaviour differs by format.
+ */
+function is_meta_source(?string $source): bool
+{
+    return in_array(strtolower((string) $source), ['fb', 'ig', 'msg', 'an'], true);
+}
+
+function meta_ad_params(): array
+{
+    return ['brid'];
+}
+
 function run_migrations(PDO $db): void
 {
-    $currentVersion = 19; // Bump this when adding new migrations
+    $currentVersion = 20; // Bump this when adding new migrations
 
     // Use SQLite's built-in PRAGMA user_version (per-database, no external file)
     $version = (int) $db->query('PRAGMA user_version')->fetchColumn();
@@ -2204,6 +2221,17 @@ function run_migrations(PDO $db): void
             created_at TEXT NOT NULL
         )');
         $db->exec('CREATE INDEX IF NOT EXISTS idx_annotations_site_date ON annotations (site, date)');
+    }
+
+    // v20: strip Meta's per-click brid from paths of Meta ad traffic
+    if ($version < 20) {
+        $rows = $db->query("SELECT id, path FROM pageviews WHERE path LIKE '%brid=%' AND lower(utm_source) IN ('fb', 'ig', 'msg', 'an')")->fetchAll(PDO::FETCH_ASSOC);
+        $update = $db->prepare('UPDATE pageviews SET path = ? WHERE id = ?');
+        $db->beginTransaction();
+        foreach ($rows as $row) {
+            $update->execute([normalize_path($row['path'], meta_ad_params()), $row['id']]);
+        }
+        $db->commit();
     }
 
     $db->exec('PRAGMA user_version = ' . $currentVersion);
