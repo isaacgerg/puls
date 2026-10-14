@@ -15,6 +15,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 - The tracking script is cached for one hour instead of 24, with an ETag. Script changes and new attributes reach every visitor within an hour, and the hourly check is answered with an empty 304 when nothing changed.
 
+### Fixed
+
+- A wrong password now shows the login form with "Invalid username or password." Before, it showed an empty dashboard with no message and counted each attempt twice, so the lockout started after half of `MAX_LOGIN_ATTEMPTS`.
+- Opening `/?login` while logged in goes straight to the dashboard instead of showing the login form.
+
 ## [1.23.0] - 2026-10-13
 
 ### Added

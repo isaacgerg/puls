@@ -339,8 +339,11 @@ function handle_login(array $config): void
         $_SESSION['login_attempts'] = ($_SESSION['login_attempts'] ?? 0) + 1;
         $_SESSION['last_attempt'] = time();
         audit_log($config, $username, 'login_failed');
+        show_login($config, 'Invalid username or password.');
         return;
     }
+
+    if (is_authenticated()) respond('', 302, null, ['Location' => '/']);
 
     show_login($config);
 }
