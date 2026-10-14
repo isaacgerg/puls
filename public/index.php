@@ -343,6 +343,8 @@ function handle_login(array $config): void
         return;
     }
 
+    if (is_authenticated()) respond('', 302, null, ['Location' => '/']);
+
     show_login($config);
 }
 

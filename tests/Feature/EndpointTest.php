@@ -1171,6 +1171,14 @@ test('csrf endpoint starts a hardened session', function () {
         ->and($cookie)->toContain('SameSite=Strict');
 });
 
+test('login page redirects to the dashboard when already logged in', function () {
+    $r = http('GET', '/?login', ['header' => restrictedSession(), 'follow_location' => 0], 8090);
+    expect($r['status'])->toBe(302);
+
+    $location = collect($r['headers'])->first(fn ($h) => str_starts_with($h, 'Location:'));
+    expect($location)->toBe('Location: /');
+});
+
 /**
  * Post a login with a wrong password in a fresh session, $times times in a row.
  * Returns the response to the last attempt.
