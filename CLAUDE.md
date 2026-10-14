@@ -50,7 +50,7 @@ users.json              — User credentials (bcrypt hashed, auto-created by CLI
 data/puls.sqlite        — SQLite database (auto-created, gitignored)
 composer.json           — Platform requirements (PHP 8.3+, pdo_sqlite) + dev dependencies (Pest)
 phpunit.xml             — Test configuration (Pest)
-tests/                  — Pest test suite (214 tests, unit + feature)
+tests/                  — Pest test suite (217 tests, unit + feature)
 docs/integrations.md    - Tracking setup: script attributes, events, keeping personal data out of URLs
 docs/api.md             - Read API reference (JSON/CSV, share tokens)
 scripts/hooks/pre-push  — Git hook: runs Pest before allowing push
