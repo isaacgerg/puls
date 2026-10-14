@@ -1171,6 +1171,39 @@ test('csrf endpoint starts a hardened session', function () {
         ->and($cookie)->toContain('SameSite=Strict');
 });
 
+/**
+ * Post a login with a wrong password in a fresh session, $times times in a row.
+ * Returns the response to the last attempt.
+ */
+function failedLogins(int $times): array
+{
+    restrictedSession(); // starts the server with a known user
+    $r = http('GET', '/?csrf', [], 8090);
+    preg_match('/Set-Cookie:\s*([^=]+=[^;]+)/i', implode("\n", $r['headers']), $m);
+    $cookie = $m[1];
+    $token = json_decode($r['body'], true)['token'];
+    for ($i = 0; $i < $times; $i++) {
+        $r = http('POST', '/?login', [
+            'header' => "Content-Type: application/x-www-form-urlencoded\r\nCookie: {$cookie}",
+            'content' => http_build_query(['_login' => 1, '_token' => $token, 'username' => 'limited', 'password' => 'wrong']),
+        ], 8090);
+        if (preg_match('/name="_token" value="([^"]+)"/', $r['body'], $t)) $token = $t[1];
+    }
+    return $r;
+}
+
+test('failed login shows the login form with an error', function () {
+    $r = failedLogins(1);
+    expect($r['status'])->toBe(200)
+        ->and($r['body'])->toContain('name="_login"')
+        ->and($r['body'])->toContain('Invalid username or password');
+});
+
+test('lockout starts after max_login_attempts failed logins, not before', function () {
+    expect(failedLogins(5)['body'])->toContain('Invalid username or password')
+        ->and(failedLogins(6)['body'])->toContain('Too many failed attempts');
+});
+
 // =====================================================================
 // Logout
 // =====================================================================
