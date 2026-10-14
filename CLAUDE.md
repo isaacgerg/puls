@@ -65,6 +65,8 @@ docker-compose.yml      — One-command setup with volume for /app/data
 .claude/hooks/php-lint.sh — PostToolUse hook: syntax-checks PHP after edit
 ```
 
+**Sensitive files:** `users.json` (accounts, password hashes), `data/*.sqlite` (visitor data, the local copy may be production data) and `.env` (APP_KEY) are gitignored and must stay that way. Change users and data only through the `puls` CLI. Don't print their contents, query real visitor data, or overwrite or delete them without asking first. Use `data/demo.sqlite` (`scripts/seed-demo.php`) for demos and experiments.
+
 ### Key Design Decisions
 
 - **No framework** — pure PHP 8.3+, only requires `pdo_sqlite`
