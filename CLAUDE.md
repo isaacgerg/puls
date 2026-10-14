@@ -50,7 +50,7 @@ users.json              — User credentials (bcrypt hashed, auto-created by CLI
 data/puls.sqlite        — SQLite database (auto-created, gitignored)
 composer.json           — Platform requirements (PHP 8.3+, pdo_sqlite) + dev dependencies (Pest)
 phpunit.xml             — Test configuration (Pest)
-tests/                  — Pest test suite (214 tests, unit + feature)
+tests/                  — Pest test suite (217 tests, unit + feature)
 docs/integrations.md    - Tracking setup: script attributes, events, keeping personal data out of URLs
 docs/api.md             - Read API reference (JSON/CSV, share tokens)
 scripts/hooks/pre-push  — Git hook: runs Pest before allowing push
@@ -64,6 +64,8 @@ docker-compose.yml      — One-command setup with volume for /app/data
 .dockerignore           — Excludes dev files from Docker build
 .claude/hooks/php-lint.sh — PostToolUse hook: syntax-checks PHP after edit
 ```
+
+**Sensitive files:** `users.json` (accounts, password hashes), `data/*.sqlite` (visitor data, the local copy may be production data) and `.env` (APP_KEY) are gitignored and must stay that way. Change users and data only through the `puls` CLI. Don't print their contents, query real visitor data, or overwrite or delete them without asking first. Use `data/demo.sqlite` (`scripts/seed-demo.php`) for demos and experiments.
 
 ### Key Design Decisions
 
