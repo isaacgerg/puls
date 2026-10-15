@@ -362,8 +362,7 @@ function handle_logout(): void
 function audit_log(array $config, string $username, string $action): void
 {
     $db = get_db($config['db_path']);
-    $ip = $_SERVER['HTTP_X_FORWARDED_FOR'] ?? $_SERVER['HTTP_X_REAL_IP'] ?? $_SERVER['REMOTE_ADDR'] ?? '';
-    if (str_contains($ip, ',')) $ip = trim(explode(',', $ip)[0]);
+    $ip = client_ip($_SERVER, $config['trusted_proxies'] ?? []);
     $stmt = $db->prepare('INSERT INTO audit_log (username, action, ip, created_at) VALUES (?, ?, ?, ?)');
     $stmt->execute([$username, $action, $ip, date('Y-m-d H:i:s')]);
 }
@@ -629,10 +628,11 @@ function handle_collect(array $config): void
     $db = get_db($config['db_path']);
 
     $site = normalize_site(!empty($input['site']) ? $input['site'] : ($_SERVER['HTTP_HOST'] ?? 'unknown'));
-    if (is_excluded_ip($db, $site, $_SERVER['REMOTE_ADDR'] ?? '')) return;
+    $ip = client_ip($_SERVER, $config['trusted_proxies'] ?? []);
+    if (is_excluded_ip($db, $site, $ip)) return;
 
     $salt = date('Y-m-d') . 'puls-' . $config['app_key'];
-    $hash = hash('sha256', ($_SERVER['REMOTE_ADDR'] ?? '') . ($_SERVER['HTTP_USER_AGENT'] ?? '') . $salt);
+    $hash = hash('sha256', $ip . ($_SERVER['HTTP_USER_AGENT'] ?? '') . $salt);
 
     $browser = detect_browser($ua);
     $device = detect_device((int)($input['w'] ?? 0));
@@ -716,7 +716,8 @@ function handle_event(array $config): void
     $db = get_db($config['db_path']);
 
     $site = normalize_site(!empty($input['site']) ? $input['site'] : ($_SERVER['HTTP_HOST'] ?? 'unknown'));
-    if (is_excluded_ip($db, $site, $_SERVER['REMOTE_ADDR'] ?? '')) return;
+    $ip = client_ip($_SERVER, $config['trusted_proxies'] ?? []);
+    if (is_excluded_ip($db, $site, $ip)) return;
     $eventName = substr(trim($input['event_name']), 0, 100);
     $pagePath = !empty($input['page_path']) ? normalize_path(urldecode(substr($input['page_path'], 0, 500))) : null;
 
@@ -726,7 +727,7 @@ function handle_event(array $config): void
     }
 
     $salt = date('Y-m-d') . 'puls-' . $config['app_key'];
-    $hash = hash('sha256', ($_SERVER['REMOTE_ADDR'] ?? '') . ($_SERVER['HTTP_USER_AGENT'] ?? '') . $salt);
+    $hash = hash('sha256', $ip . ($_SERVER['HTTP_USER_AGENT'] ?? '') . $salt);
 
     // Dedup: skip same event with same data from same visitor within 10 seconds.
     // IS (not =) so two events without data also match each other (NULL IS NULL).
@@ -749,6 +750,37 @@ function handle_event(array $config): void
     ]);
 
     cleanup_events($db, $config['events_retention_days']);
+}
+
+/**
+ * The visitor's IP address. Forwarded headers are only read when the request
+ * comes from a trusted proxy (TRUSTED_PROXIES); anyone can send them, so
+ * trusting them otherwise would let visitors pick their own address.
+ * X-Forwarded-For is walked from the right, the end the proxies append to,
+ * and the first address that is not a trusted proxy is the visitor.
+ */
+function client_ip(array $server, array $trustedProxies): string
+{
+    $ip = $server['REMOTE_ADDR'] ?? '';
+    $trusted = function (string $addr) use ($trustedProxies): bool {
+        foreach ($trustedProxies as $range) {
+            if (ip_in_range($addr, $range)) return true;
+        }
+        return false;
+    };
+    if (!$trusted($ip)) return $ip;
+
+    $hops = array_values(array_filter(array_map('trim', explode(',', $server['HTTP_X_FORWARDED_FOR'] ?? '')), 'strlen'));
+    if (!$hops) {
+        $realIp = trim($server['HTTP_X_REAL_IP'] ?? '');
+        return filter_var($realIp, FILTER_VALIDATE_IP) !== false ? $realIp : $ip;
+    }
+    foreach (array_reverse($hops) as $hop) {
+        if (filter_var($hop, FILTER_VALIDATE_IP) === false) break;
+        $ip = $hop;
+        if (!$trusted($hop)) break;
+    }
+    return $ip;
 }
 
 /**

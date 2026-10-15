@@ -375,7 +375,7 @@ php puls exclude:remove [my-site 81.2.3.4]
 
 Without arguments, `exclude:add` asks for the site (or all sites), the address and a label. To find your address, search for "what is my ip" from the network you want to exclude. Home connections and phones often change IP, and IPv6 at home usually changes within a fixed prefix (often a `/56` or `/64`), so exclude the prefix rather than a single address, or use the per-browser opt-out below.
 
-Puls compares against the address the request comes from. If Puls itself runs behind a reverse proxy or load balancer, that is the proxy's address, so IP exclusion (and unique visitor counts) need Puls to see the visitor's real IP.
+If Puls runs behind a reverse proxy, load balancer or Cloudflare, set `TRUSTED_PROXIES` so it sees the visitor's address, see [Behind a Reverse Proxy](#behind-a-reverse-proxy-docker-cloudflare-load-balancers).
 
 ### Per browser
 
@@ -401,15 +401,25 @@ Add a `<noscript>` pixel to catch bots and visitors that don't execute JavaScrip
 
 For server-rendered frameworks (Astro, Laravel, Statamic), you can inject the current path dynamically — see the framework examples above.
 
-## Behind a Reverse Proxy (Docker, Nginx, etc.)
+## Behind a Reverse Proxy (Docker, Cloudflare, load balancers)
 
-If your app runs behind a reverse proxy (common with Docker, Node.js apps, or load balancers), make sure the proxy forwards the visitor's real IP. Without this, Puls sees the proxy's internal IP and counts all visitors as one.
+This is about what sits in front of **Puls**, not the tracked site. The tracking script sends pageviews and events from the visitor's browser straight to Puls, so a proxy in front of your site does not matter.
 
-Add these headers to your Nginx `proxy_pass` block:
+Puls uses the visitor's IP address for the daily visitor hash (unique visitors, sessions, bounce rate, funnels) and for [IP exclusion](#by-ip-address). By default it takes the address the connection comes from. That is right when visitors connect to Puls directly, as with Nginx and PHP-FPM on the same server (Laravel Forge, most VPS setups) or the Docker image with its port published directly.
+
+If something forwards requests to Puls instead, such as Nginx, Caddy or Traefik in front of the Docker container, a load balancer, or Cloudflare with the proxy enabled, every request comes from the proxy. Puls then sees one address for everyone: unique visitors are counted by browser only, and IP exclusion cannot match. List the proxies in `.env`:
+
+```env
+TRUSTED_PROXIES=172.16.0.0/12          # e.g. the Docker network your proxy runs on
+```
+
+Comma-separated IPs or CIDR ranges. For Cloudflare, add its published ranges from <https://www.cloudflare.com/ips/>. Requests from a trusted proxy have the visitor's address read from `X-Forwarded-For` (from the right, skipping trusted proxies) or `X-Real-IP`. Requests from anywhere else keep the connection address, because anyone can send those headers.
+
+The proxy must forward the visitor's address. For Nginx:
 
 ```nginx
 location / {
-    proxy_pass http://127.0.0.1:3000;
+    proxy_pass http://127.0.0.1:8080;
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $remote_addr;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -417,7 +427,7 @@ location / {
 }
 ```
 
-Puls reads `X-Forwarded-For` and `X-Real-IP` automatically.
+Caddy and Traefik send `X-Forwarded-For` by default.
 
 ## Server-side Bot Tracking (Nginx Mirror)
 

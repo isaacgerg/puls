@@ -62,4 +62,7 @@ return [
     'events_retention_days' => max(0, (int) ($_ENV['EVENTS_RETENTION_DAYS'] ?? 400)),
 
     'ignored_bots' => array_filter(array_map('trim', explode(',', $_ENV['IGNORED_BOTS'] ?? ''))),
+
+    // Reverse proxies (IPs or CIDR ranges) whose X-Forwarded-For / X-Real-IP is trusted
+    'trusted_proxies' => array_values(array_filter(array_map('trim', explode(',', $_ENV['TRUSTED_PROXIES'] ?? '')))),
 ];

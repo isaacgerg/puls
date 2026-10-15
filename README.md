@@ -32,7 +32,7 @@ Puls is designed to be GDPR-friendly without consent banners:
 
 **Core**
 - **Cookieless** — GDPR-friendly by default, no consent banners needed
-- **Lightweight** — ~1.5KB tracking script, single PHP file backend
+- **Lightweight** — ~2KB tracking script (gzipped), single PHP file backend
 - **Zero dependencies** — PHP 8.3+ and SQLite, nothing else
 
 **Dashboard**
@@ -220,6 +220,7 @@ SESSION_LIFETIME=2592000    # 30 days
 MAX_LOGIN_ATTEMPTS=5
 LOCKOUT_MINUTES=15
 IGNORED_BOTS=               # Bot UA patterns to exclude (comma-separated)
+TRUSTED_PROXIES=            # Proxies in front of Puls (IPs/CIDR), see docs/integrations.md
 EVENTS_RETENTION_DAYS=400   # Days to keep custom events, 0 = forever
 ```
 
