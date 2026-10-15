@@ -346,6 +346,8 @@
   .note-form input:focus, .note-item input:focus { outline: none; border-color: var(--note); box-shadow: 0 0 0 3px var(--note-band); }
   .note-form button { padding: 5px 12px; border-radius: 6px; border: 1px solid var(--border); background: none; color: var(--muted); font-size: 12px; font-family: inherit; cursor: pointer; }
   .note-form button[type="submit"] { border-color: var(--note); color: var(--note); }
+  .note-form .note-form-hint { flex-basis: 100%; margin: 0; }
+  .note-form .note-form-hint button { padding: 0; border: none; font-size: inherit; color: inherit; text-decoration: underline; }
   .note-list { display: flex; flex-direction: column; gap: 6px; }
   .note-list:empty::after { content: 'No notes in this period'; font-size: 11px; color: var(--light); }
   .note-item { display: flex; align-items: center; gap: 6px; }
@@ -3029,6 +3031,7 @@
       '<label class="note-form-text">Note<input type="text" name="label" required maxlength="100" placeholder="What happened, e.g. a film on Facebook"></label>' +
       '<button type="submit">Save</button>' +
       '<button type="button" onclick="toggleNoteForm()">Cancel</button>' +
+      '<p class="note-form-hint">Edit or remove notes in <button type="button" onclick="toggleNoteForm(); openMenu()">Settings</button></p>' +
     '</form>';
   }
 
