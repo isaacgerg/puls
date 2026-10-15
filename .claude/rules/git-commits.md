@@ -19,3 +19,4 @@ Types: feat, fix, refactor, docs, style, chore, test
 - Never push directly to main during development — use feature branches
 - Tests must pass before pushing (pre-push hook enforces this)
 - Delete feature branches (local + remote) after merge — use `gh api` for remote to avoid pre-push hook on delete
+- Stacked PRs: retarget the dependent PR to main (`gh pr edit <n> --base main`) before deleting its base branch. Deleting the base via `gh api` closes the dependent PR instead of retargeting it, and changing the base does not start CI (close and reopen the PR to trigger it)
