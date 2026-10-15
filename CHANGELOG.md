@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Exclude your own visits. `php puls exclude:add <site> <ip>` stops storing pageviews and events from an address or CIDR range (IPv4 or IPv6) on one site, or on all sites with `*`. `exclude:list` and `exclude:remove` manage the list. Opening a tracked page with `#puls-ignore` stops counting that browser on that site, and `#puls-track` turns it back on (stored in `localStorage`, no cookie). Bot visits and broken links are logged as before.
 - `data-collapse-tokens` on the tracking script sends token path segments as `:token` (`/movement/ckx3abc9def0ghi1jkl2mno3p` becomes `/movement/:token`), for pageviews and event page paths. A token is a whole segment of 16 or more letters and digits containing both, or a UUID, the same rule as `sites:clean-paths --tokens`. Single-page apps with cuids or UUIDs in their URLs get one Top pages row per page type, which `data-path` could not give them since it is fixed per page.
 
 ### Changed

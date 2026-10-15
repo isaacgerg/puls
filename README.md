@@ -57,6 +57,7 @@ Puls is designed to be GDPR-friendly without consent banners:
 - **Outbound links** — auto-track clicks on external links
 - **UTM campaigns** — full UTM support with guided link wizard
 - **Google Ads** — auto-detect `gad_source`/`gad_campaignid` (JS + server-side)
+- **Exclude your own visits** - by IP address or range per site, or per browser with `#puls-ignore`
 
 **Bot & link monitoring**
 - **Bot detection** — 25+ bots: AI crawlers, search engines, social, SEO, monitors
@@ -195,6 +196,9 @@ php puls share:create <site>             # Create a shareable dashboard link
 php puls share:create <site> --label="Client Q1" --expires=2026-06-30
 php puls share:list                      # List all share tokens
 php puls share:revoke <token>            # Revoke a share token
+php puls exclude:add <site> <ip>         # Stop counting an IP or range (e.g. 81.2.3.0/24, site * = all)
+php puls exclude:list                    # List excluded IPs
+php puls exclude:remove <site> <ip>      # Count an excluded IP again
 php puls sites:remove <name>             # Delete all data for a site
 php puls sites:clean-paths <site> --query --ids  # Clean stored paths (--keep=a,b, --tokens, --dry-run)
 php puls nginx:config                    # Generate Nginx config for a site

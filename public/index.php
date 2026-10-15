@@ -564,9 +564,13 @@ function get_tracking_script(): string
       var tk=/\/(?:(?=[A-Za-z0-9]*\d)(?=[A-Za-z0-9]*[A-Za-z])[A-Za-z0-9]{16,}|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})(?=\/|$)/g;
       function pth(){var x=sc.dataset.path||location.pathname;if(ct)x=x.replace(tk,'/:token');return ci?x.replace(/\/\d+(?=\/|$)/g,'/:id'):x}
       function log(){if(dbg&&window.console)console.log.apply(console,['[puls]'].concat([].slice.call(arguments)))}
+      function off(){try{return localStorage.getItem('puls_ignore')==='1'}catch(e){return false}}
+      function opt(){var h=location.hash;if(h!=='#puls-ignore'&&h!=='#puls-track')return;try{h==='#puls-ignore'?localStorage.setItem('puls_ignore','1'):localStorage.removeItem('puls_ignore')}catch(e){return}history.replaceState(null,'',location.pathname+location.search);alert(h==='#puls-ignore'?'Puls: visits from this browser are no longer counted on '+location.hostname+'.':'Puls: visits from this browser are counted again on '+location.hostname+'.')}
+      opt();addEventListener('hashchange',opt);
       function utm(){var p=new URLSearchParams(location.search),o={};['source','medium','campaign','term','content'].forEach(function(k){var v=p.get('utm_'+k);if(v)o[k]=v});if(!o.source&&p.get('gad_source')){o.source='google';o.medium='cpc';var c=p.get('gad_campaignid');if(c)o.campaign=c}return Object.keys(o).length?o:null}
       function url(){var s=location.search;if(qk!==undefined&&s){var k=qk==='none'?[]:qk.split(',').map(function(x){return x.trim()}),p=new URLSearchParams(s),o=new URLSearchParams();p.forEach(function(v,n){if(k.indexOf(n)>=0)o.append(n,v)});s=o.toString();s=s?'?'+s:''}return pth()+s}
       function s(){
+        if(off()){log('ignored: this browser is excluded');return}
         var u=url(),d=JSON.stringify({u:u,r:document.referrer,w:innerWidth,site:site,utm:utm(),v:ver});
         log('pageview',u);
         navigator.sendBeacon?navigator.sendBeacon(ep,d):0;
@@ -575,7 +579,7 @@ function get_tracking_script(): string
       q();
       if(history.pushState){var o=history.pushState;history.pushState=function(){o.apply(this,arguments);q()};addEventListener('popstate',q)}
       var prev=window.puls;
-      window.puls={track:function(name,data){if(!name)return;var p={event_name:name,site:site,page_path:pth()};if(ver)p.app_version=ver;if(data&&typeof data==='object')p.event_data=data;log('event',name,data||'');navigator.sendBeacon?navigator.sendBeacon(evEp,JSON.stringify(p)):0}};
+      window.puls={track:function(name,data){if(!name||off())return;var p={event_name:name,site:site,page_path:pth()};if(ver)p.app_version=ver;if(data&&typeof data==='object')p.event_data=data;log('event',name,data||'');navigator.sendBeacon?navigator.sendBeacon(evEp,JSON.stringify(p)):0}};
       if(prev&&prev.q&&prev.q.length){log('draining',prev.q.length,'queued event(s)');for(var i=0;i<prev.q.length;i++)puls.track.apply(null,prev.q[i])}
       if(sc.dataset.outbound!==undefined){document.addEventListener('click',function(e){var a=e.target.closest('a[href]');if(!a)return;try{var u=new URL(a.href,location.origin);if(u.hostname===location.hostname||u.protocol!=='http:'&&u.protocol!=='https:')return;puls.track('outbound_click',{url:u.href,text:(a.textContent||'').trim().substring(0,200)})}catch(ex){}},true)}
       if(sc.dataset.autoEvents!==undefined){
@@ -625,6 +629,7 @@ function handle_collect(array $config): void
     $db = get_db($config['db_path']);
 
     $site = normalize_site(!empty($input['site']) ? $input['site'] : ($_SERVER['HTTP_HOST'] ?? 'unknown'));
+    if (is_excluded_ip($db, $site, $_SERVER['REMOTE_ADDR'] ?? '')) return;
 
     $salt = date('Y-m-d') . 'puls-' . $config['app_key'];
     $hash = hash('sha256', ($_SERVER['REMOTE_ADDR'] ?? '') . ($_SERVER['HTTP_USER_AGENT'] ?? '') . $salt);
@@ -711,6 +716,7 @@ function handle_event(array $config): void
     $db = get_db($config['db_path']);
 
     $site = normalize_site(!empty($input['site']) ? $input['site'] : ($_SERVER['HTTP_HOST'] ?? 'unknown'));
+    if (is_excluded_ip($db, $site, $_SERVER['REMOTE_ADDR'] ?? '')) return;
     $eventName = substr(trim($input['event_name']), 0, 100);
     $pagePath = !empty($input['page_path']) ? normalize_path(urldecode(substr($input['page_path'], 0, 500))) : null;
 
@@ -743,6 +749,45 @@ function handle_event(array $config): void
     ]);
 
     cleanup_events($db, $config['events_retention_days']);
+}
+
+/**
+ * Whether pageviews and events from $ip should be dropped for $site
+ * (the site's own excluded_ips rows plus those for all sites, '*').
+ */
+function is_excluded_ip(PDO $db, string $site, string $ip): bool
+{
+    $stmt = $db->prepare("SELECT ip FROM excluded_ips WHERE site IN (?, '*')");
+    $stmt->execute([$site]);
+    foreach ($stmt->fetchAll(PDO::FETCH_COLUMN) as $range) {
+        if (ip_in_range($ip, $range)) return true;
+    }
+    return false;
+}
+
+/**
+ * Match an IPv4 or IPv6 address against a single address or a CIDR range
+ * (81.2.3.0/24, 2001:db8:1::/48). An IPv4-mapped IPv6 address (::ffff:1.2.3.4)
+ * matches IPv4 ranges.
+ */
+function ip_in_range(string $ip, string $range): bool
+{
+    [$net, $bits] = array_pad(explode('/', $range, 2), 2, null);
+    $ipBin = @inet_pton($ip);
+    $netBin = @inet_pton($net);
+    if ($ipBin === false || $netBin === false) return false;
+    if (strlen($ipBin) === 16 && strlen($netBin) === 4 && str_starts_with($ipBin, str_repeat("\0", 10) . "\xff\xff")) {
+        $ipBin = substr($ipBin, 12);
+    }
+    if (strlen($ipBin) !== strlen($netBin)) return false;
+
+    $bits = $bits === null ? strlen($ipBin) * 8 : (int) $bits;
+    $bytes = intdiv($bits, 8);
+    if (substr($ipBin, 0, $bytes) !== substr($netBin, 0, $bytes)) return false;
+    $rest = $bits % 8;
+    if ($rest === 0) return true;
+    $mask = chr((0xff << (8 - $rest)) & 0xff);
+    return ($ipBin[$bytes] & $mask) === ($netBin[$bytes] & $mask);
 }
 
 /**
@@ -1865,7 +1910,7 @@ function meta_ad_params(): array
 
 function run_migrations(PDO $db): void
 {
-    $currentVersion = 20; // Bump this when adding new migrations
+    $currentVersion = 21; // Bump this when adding new migrations
 
     // Use SQLite's built-in PRAGMA user_version (per-database, no external file)
     $version = (int) $db->query('PRAGMA user_version')->fetchColumn();
@@ -2244,6 +2289,18 @@ function run_migrations(PDO $db): void
             $update->execute([normalize_path($row['path'], meta_ad_params()), $row['id']]);
         }
         $db->commit();
+    }
+
+    // v21: IP addresses and ranges whose pageviews and events are not stored (site '*' = all sites)
+    if ($version < 21) {
+        $db->exec('CREATE TABLE IF NOT EXISTS excluded_ips (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            site TEXT NOT NULL,
+            ip TEXT NOT NULL,
+            label TEXT,
+            created_at TEXT NOT NULL
+        )');
+        $db->exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_excluded_ips_unique ON excluded_ips (site, ip)');
     }
 
     $db->exec('PRAGMA user_version = ' . $currentVersion);

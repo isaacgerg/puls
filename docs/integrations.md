@@ -357,6 +357,32 @@ Add `data-outbound` to the script tag to auto-track clicks on external links:
 
 Clicks on links pointing to other domains are tracked as `outbound_click` events. Results appear in the dashboard under Traffic > Outbound, with drill-down showing which pages the clicks came from.
 
+## Excluding Your Own Visits
+
+Your own and your team's visits can be left out of the numbers in two ways. Both apply to pageviews and events only. Bot visits and broken links are logged as before.
+
+### By IP address
+
+Pageviews and events from an excluded address or range are dropped before anything is stored. Use it for an office or another network with a fixed IP:
+
+```bash
+php puls exclude:add my-site 81.2.3.4 --label=Office   # one address
+php puls exclude:add my-site 81.2.3.0/24              # a range (CIDR)
+php puls exclude:add '*' 2001:db8:1::/48              # IPv6 prefix, on all sites
+php puls exclude:list [my-site]
+php puls exclude:remove [my-site 81.2.3.4]
+```
+
+Without arguments, `exclude:add` asks for the site (or all sites), the address and a label. To find your address, search for "what is my ip" from the network you want to exclude. Home connections and phones often change IP, and IPv6 at home usually changes within a fixed prefix (often a `/56` or `/64`), so exclude the prefix rather than a single address, or use the per-browser opt-out below.
+
+Puls compares against the address the request comes from. If Puls itself runs behind a reverse proxy or load balancer, that is the proxy's address, so IP exclusion (and unique visitor counts) need Puls to see the visitor's real IP.
+
+### Per browser
+
+Open any page on the tracked site with `#puls-ignore` at the end of the address, for example `https://example.com/#puls-ignore`. A message confirms it, and from then on that browser sends nothing to Puls for that site. Open a page with `#puls-track` to be counted again.
+
+It is stored in the browser's `localStorage` (no cookie), so it follows the device across networks but has to be done once per browser and site, and clearing the site's data resets it. With `data-debug`, skipped pageviews are logged to the console.
+
 ## Bot Tracking Pixel (optional)
 
 Add a `<noscript>` pixel to catch bots and visitors that don't execute JavaScript:
