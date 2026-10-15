@@ -16,6 +16,7 @@ beforeAll(function () {
 afterAll(function () {
     stopServer($GLOBALS['server_pid']);
     if (isset($GLOBALS['restricted_server'])) stopServer($GLOBALS['restricted_server']);
+    if (isset($GLOBALS['proxy_server'])) stopServer($GLOBALS['proxy_server']);
     exec('rm -rf ' . escapeshellarg($GLOBALS['test_dir']));
 });
 
@@ -1296,4 +1297,41 @@ test('js snippet lets a browser opt out with #puls-ignore and back in with #puls
         ->and($r['body'])->toContain("'#puls-track'")
         ->and($r['body'])->toContain("localStorage.getItem('puls_ignore')")
         ->and($r['body'])->toContain('if(!name||off())return');
+});
+
+// =====================================================================
+// Visitor IP behind a reverse proxy (TRUSTED_PROXIES)
+// =====================================================================
+
+function distinctVisitors(string $site): int
+{
+    return (int) getTestDb()->query("SELECT COUNT(DISTINCT visitor_hash) FROM pageviews WHERE site = " . getTestDb()->quote($site))->fetchColumn();
+}
+
+function collectVia(string $site, string $forwardedFor, int $port = 8089): void
+{
+    http('POST', '/?collect', [
+        'header' => "Content-Type: application/json\r\nUser-Agent: Mozilla/5.0 Chrome/120.0\r\nX-Forwarded-For: {$forwardedFor}",
+        'content' => json_encode(['u' => '/', 'r' => '', 'w' => 1920, 'site' => $site]),
+    ], $port);
+}
+
+test('a forged X-Forwarded-For does not create visitors without trusted proxies', function () {
+    collectVia('xff-untrusted', '198.51.100.1');
+    collectVia('xff-untrusted', '198.51.100.2');
+    expect(distinctVisitors('xff-untrusted'))->toBe(1);
+});
+
+test('behind a trusted proxy, visitors are told apart by X-Forwarded-For and can be excluded', function () {
+    if (!isset($GLOBALS['proxy_server'])) {
+        $GLOBALS['proxy_server'] = startServer(8091, $GLOBALS['test_env'] + ['TRUSTED_PROXIES' => '127.0.0.1,::1']);
+    }
+    getTestDb()->exec("INSERT INTO excluded_ips (site, ip, created_at) VALUES ('xff-trusted', '198.51.100.3', datetime('now'))");
+
+    collectVia('xff-trusted', '198.51.100.1', 8091);
+    collectVia('xff-trusted', '198.51.100.2', 8091);
+    collectVia('xff-trusted', '198.51.100.3', 8091);
+
+    expect(distinctVisitors('xff-trusted'))->toBe(2)
+        ->and((int) getTestDb()->query("SELECT COUNT(*) FROM pageviews WHERE site = 'xff-trusted'")->fetchColumn())->toBe(2);
 });

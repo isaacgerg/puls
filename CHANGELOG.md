@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Puls behind a reverse proxy, load balancer or Cloudflare saw every visitor as the proxy, so unique visitors, sessions and bounce rate were counted by browser only. Set `TRUSTED_PROXIES` (IPs or CIDR ranges) and Puls reads the visitor's address from `X-Forwarded-For` or `X-Real-IP` on requests from those proxies. The docs said these headers were read automatically; they were not for tracking. Puls behind Nginx and PHP-FPM on the same server, as on Laravel Forge, was not affected.
+- The login audit log trusted `X-Forwarded-For` from anyone, so a client could record any address. It now uses the same rule.
 - A wrong password now shows the login form with "Invalid username or password." Before, it showed an empty dashboard with no message and counted each attempt twice, so the lockout started after half of `MAX_LOGIN_ATTEMPTS`.
 - Opening `/?login` while logged in goes straight to the dashboard instead of showing the login form.
 
