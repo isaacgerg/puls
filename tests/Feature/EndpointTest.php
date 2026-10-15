@@ -1251,3 +1251,49 @@ function collect(array $items): object
         }
     };
 }
+
+// =====================================================================
+// Excluded IPs and the per-browser opt-out
+// =====================================================================
+
+test('collect and event drop hits from an excluded IP on that site only', function () {
+    $db = getTestDb();
+    // The dev server sees the test client as either loopback address
+    $db->exec("INSERT INTO excluded_ips (site, ip, created_at) VALUES ('excluded-site', '127.0.0.1', datetime('now')), ('excluded-site', '::1', datetime('now'))");
+
+    $post = fn (string $endpoint, array $body) => http('POST', $endpoint, [
+        'header' => "Content-Type: application/json\r\nUser-Agent: Mozilla/5.0 Chrome/120.0",
+        'content' => json_encode($body),
+    ]);
+    foreach (['excluded-site', 'other-site'] as $site) {
+        expect($post('/?collect', ['u' => '/x', 'r' => '', 'w' => 1920, 'site' => $site])['status'])->toBe(204);
+        expect($post('/?event', ['event_name' => 'excluded_test', 'site' => $site])['status'])->toBe(204);
+    }
+
+    $count = fn (string $sql) => (int) $db->query($sql)->fetchColumn();
+    expect($count("SELECT COUNT(*) FROM pageviews WHERE site = 'excluded-site'"))->toBe(0)
+        ->and($count("SELECT COUNT(*) FROM events WHERE site = 'excluded-site'"))->toBe(0)
+        ->and($count("SELECT COUNT(*) FROM pageviews WHERE site = 'other-site'"))->toBe(1)
+        ->and($count("SELECT COUNT(*) FROM events WHERE site = 'other-site'"))->toBe(1);
+});
+
+test('an excluded range for all sites drops hits on every site', function () {
+    $db = getTestDb();
+    $db->exec("INSERT INTO excluded_ips (site, ip, created_at) VALUES ('*', '127.0.0.0/8', datetime('now')), ('*', '::1/128', datetime('now'))");
+
+    http('POST', '/?collect', [
+        'header' => "Content-Type: application/json\r\nUser-Agent: Mozilla/5.0 Chrome/120.0",
+        'content' => json_encode(['u' => '/x', 'r' => '', 'w' => 1920, 'site' => 'any-site-excluded']),
+    ]);
+    $db->exec("DELETE FROM excluded_ips WHERE site = '*'");
+
+    expect((int) $db->query("SELECT COUNT(*) FROM pageviews WHERE site = 'any-site-excluded'")->fetchColumn())->toBe(0);
+});
+
+test('js snippet lets a browser opt out with #puls-ignore and back in with #puls-track', function () {
+    $r = http('GET', '/?js');
+    expect($r['body'])->toContain("'#puls-ignore'")
+        ->and($r['body'])->toContain("'#puls-track'")
+        ->and($r['body'])->toContain("localStorage.getItem('puls_ignore')")
+        ->and($r['body'])->toContain('if(!name||off())return');
+});

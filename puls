@@ -16,6 +16,9 @@
  *   php puls share:create <site> [--label=...] [--expires=YYYY-MM-DD]  Create shareable link
  *   php puls share:list [<site>]                  List share tokens
  *   php puls share:revoke [<token>]                Revoke a share token
+ *   php puls exclude:add [<site> <ip>] [--label=...]  Stop counting an IP or range (site * = all sites)
+ *   php puls exclude:list [<site>]                 List excluded IPs
+ *   php puls exclude:remove [<site> <ip>]          Count an excluded IP again
  *   php puls nginx:config                          Generate Nginx config for a site
  */
 
@@ -35,6 +38,9 @@ match ($command) {
     'share:create'  => shareCreate($config, $argv[2] ?? null, $argv),
     'share:list'    => shareList($config, $argv[2] ?? null),
     'share:revoke'  => shareRevoke($config, $argv[2] ?? null),
+    'exclude:add'   => excludeAdd($config, $argv),
+    'exclude:list'  => excludeList($config, $argv[2] ?? null),
+    'exclude:remove' => excludeRemove($config, $argv[2] ?? null, $argv[3] ?? null),
     'nginx:config'  => nginxConfig(),
     default         => printHelp(),
 };
@@ -406,7 +412,7 @@ function sitesRename(array $config, ?string $oldName, ?string $newName): void
     // Rename in all tables
     $db->beginTransaction();
 
-    $tables = ['pageviews', 'bot_visits', 'broken_links', 'events', 'share_tokens', 'goals', 'app_versions', 'breakdowns', 'annotations'];
+    $tables = ['pageviews', 'bot_visits', 'broken_links', 'events', 'share_tokens', 'goals', 'app_versions', 'breakdowns', 'annotations', 'excluded_ips'];
     // Skip tables a not-yet-migrated database does not have
     $existing = $db->query("SELECT name FROM sqlite_master WHERE type = 'table'")->fetchAll(PDO::FETCH_COLUMN);
     foreach (array_intersect($tables, $existing) as $table) {
@@ -678,7 +684,7 @@ function sitesRemove(array $config, ?string $siteName): void
     }
 
     $db->beginTransaction();
-    $tables = ['pageviews', 'bot_visits', 'broken_links', 'events', 'share_tokens', 'goals', 'app_versions', 'breakdowns', 'annotations'];
+    $tables = ['pageviews', 'bot_visits', 'broken_links', 'events', 'share_tokens', 'goals', 'app_versions', 'breakdowns', 'annotations', 'excluded_ips'];
     // Skip tables a not-yet-migrated database does not have
     $existing = $db->query("SELECT name FROM sqlite_master WHERE type = 'table'")->fetchAll(PDO::FETCH_COLUMN);
     foreach (array_intersect($tables, $existing) as $table) {
@@ -970,6 +976,172 @@ function shareRevoke(array $config, ?string $tokenPrefix): void
 }
 
 // =====================================================================
+// exclude:add / exclude:list / exclude:remove
+// =====================================================================
+
+function excludeDb(string $dbPath): PDO
+{
+    if (!file_exists($dbPath)) {
+        echo "No database found. Start tracking to create it.\n";
+        exit(1);
+    }
+    $db = new PDO('sqlite:' . $dbPath);
+    $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    // Same schema as migration v21, for a database the web app has not migrated yet
+    $db->exec('CREATE TABLE IF NOT EXISTS excluded_ips (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        site TEXT NOT NULL,
+        ip TEXT NOT NULL,
+        label TEXT,
+        created_at TEXT NOT NULL
+    )');
+    $db->exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_excluded_ips_unique ON excluded_ips (site, ip)');
+    return $db;
+}
+
+/** A single IPv4/IPv6 address or a CIDR range, or null when invalid. */
+function normalizeIpRange(string $input): ?string
+{
+    [$ip, $bits] = array_pad(explode('/', trim($input), 2), 2, null);
+    $bin = @inet_pton($ip);
+    if ($bin === false) return null;
+    $ip = inet_ntop($bin);
+    if ($bits === null) return $ip;
+    $max = strlen($bin) * 8;
+    if (!ctype_digit($bits) || (int) $bits > $max) return null;
+    return $ip . '/' . (int) $bits;
+}
+
+function excludeSiteLabel(string $site): string
+{
+    return $site === '*' ? 'all sites' : $site;
+}
+
+function excludeAdd(array $config, array $argv): void
+{
+    $db = excludeDb($config['db_path']);
+
+    $label = null;
+    $args = [];
+    foreach (array_slice($argv, 2) as $arg) {
+        if (str_starts_with($arg, '--label=')) $label = substr($arg, 8);
+        else $args[] = $arg;
+    }
+    [$site, $ip] = array_pad($args, 2, null);
+    $interactive = $ip === null;
+
+    if ($site === null) {
+        $availableSites = getTrackedSites($config['db_path']);
+        echo "Exclude an IP on which site?\n";
+        echo "  0) All sites\n";
+        foreach ($availableSites as $i => $s) {
+            echo sprintf("  %d) %s\n", $i + 1, $s);
+        }
+        $input = prompt("\nSelect (number): ");
+        $idx = (int) $input - 1;
+        if ($input === '0') {
+            $site = '*';
+        } elseif ($idx >= 0 && $idx < count($availableSites)) {
+            $site = $availableSites[$idx];
+        } else {
+            echo "Invalid selection.\n";
+            exit(1);
+        }
+    }
+
+    if ($ip === null) {
+        echo "Enter an address (81.2.3.4) or a range (81.2.3.0/24, 2001:db8:1::/48).\n";
+        echo "Your current public IP is shown by searching 'what is my ip'.\n";
+        $ip = prompt("IP or range: ");
+    }
+
+    $range = normalizeIpRange($ip);
+    if ($range === null) {
+        echo "Invalid IP address or range: '{$ip}'.\n";
+        exit(1);
+    }
+
+    if ($interactive && $label === null) {
+        $input = prompt("Label (e.g. Office, enter to skip): ");
+        if ($input !== '') $label = $input;
+    }
+
+    $stmt = $db->prepare('INSERT OR IGNORE INTO excluded_ips (site, ip, label, created_at) VALUES (?, ?, ?, ?)');
+    $stmt->execute([$site, $range, $label !== null ? mb_substr($label, 0, 100) : null, date('Y-m-d H:i:s')]);
+    if ($stmt->rowCount() === 0) {
+        echo "{$range} is already excluded on " . excludeSiteLabel($site) . ".\n";
+        return;
+    }
+
+    echo "Excluded {$range} on " . excludeSiteLabel($site) . ". Pageviews and events from it are no longer stored.\n";
+}
+
+function excludeList(array $config, ?string $site): void
+{
+    $db = excludeDb($config['db_path']);
+
+    $sql = 'SELECT * FROM excluded_ips';
+    $params = [];
+    if ($site) {
+        $sql .= " WHERE site IN (?, '*')";
+        $params[] = $site;
+    }
+    $stmt = $db->prepare($sql . ' ORDER BY site, ip');
+    $stmt->execute($params);
+    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    if (empty($rows)) {
+        echo $site ? "No excluded IPs for '{$site}'.\n" : "No excluded IPs.\n";
+        return;
+    }
+
+    $col = 22;
+    echo "  " . mbPad('SITE', $col) . mbPad('IP', 42) . sprintf("%-20s %s\n", 'LABEL', 'ADDED');
+    echo str_repeat('─', 96) . "\n";
+    foreach ($rows as $r) {
+        echo "  " . mbPad(excludeSiteLabel($r['site']), $col) . mbPad($r['ip'], 42)
+            . sprintf("%-20s %s\n", $r['label'] ?: '—', substr($r['created_at'], 0, 10));
+    }
+    echo "\n" . count($rows) . " excluded IP(s).\n";
+}
+
+function excludeRemove(array $config, ?string $site, ?string $ip): void
+{
+    $db = excludeDb($config['db_path']);
+
+    if ($site !== null && $ip !== null) {
+        $range = normalizeIpRange($ip) ?? $ip;
+        $stmt = $db->prepare('DELETE FROM excluded_ips WHERE site = ? AND ip = ?');
+        $stmt->execute([$site, $range]);
+        if ($stmt->rowCount() === 0) {
+            echo "{$range} is not excluded on " . excludeSiteLabel($site) . ".\n";
+            exit(1);
+        }
+        echo "{$range} is counted again on " . excludeSiteLabel($site) . ".\n";
+        return;
+    }
+
+    $rows = $db->query('SELECT * FROM excluded_ips ORDER BY site, ip')->fetchAll(PDO::FETCH_ASSOC);
+    if (empty($rows)) {
+        echo "No excluded IPs.\n";
+        exit(1);
+    }
+
+    echo "Select IP to count again:\n\n";
+    foreach ($rows as $i => $r) {
+        echo sprintf("  %d) ", $i + 1) . mbPad(excludeSiteLabel($r['site']), 22) . mbPad($r['ip'], 42) . ($r['label'] ?: '') . "\n";
+    }
+    $idx = (int) prompt("\nSelect (number): ") - 1;
+    if ($idx < 0 || $idx >= count($rows)) {
+        echo "Invalid selection.\n";
+        exit(1);
+    }
+
+    $db->prepare('DELETE FROM excluded_ips WHERE id = ?')->execute([$rows[$idx]['id']]);
+    echo "{$rows[$idx]['ip']} is counted again on " . excludeSiteLabel($rows[$idx]['site']) . ".\n";
+}
+
+// =====================================================================
 // nginx:config
 // =====================================================================
 
@@ -1111,11 +1283,14 @@ function printHelp(): void
       php puls share:create <site> [options]   Create a shareable dashboard link
       php puls share:list [<site>]             List share tokens
       php puls share:revoke [<token>]           Revoke a share token
+      php puls exclude:add [<site> <ip>]       Stop counting an IP or range (site * = all sites)
+      php puls exclude:list [<site>]           List excluded IPs
+      php puls exclude:remove [<site> <ip>]    Count an excluded IP again
       php puls nginx:config                    Generate Nginx config for a site
 
     Options:
       --sites    Comma-separated list of sites the user can access.
-      --label    Label for share token (e.g. "Client report Q1").
+      --label    Label for a share token ("Client report Q1") or an excluded IP ("Office").
       --expires  Expiry date for share token (YYYY-MM-DD).
       --query    Strip query strings from stored paths.
       --keep     Like --query, but keep these parameters (e.g. page,tab).
