@@ -51,7 +51,7 @@ data/puls.sqlite        — SQLite database (auto-created, gitignored)
 composer.json           — Platform requirements (PHP 8.3+, pdo_sqlite) + dev dependencies (Pest)
 phpunit.xml             — Test configuration (Pest)
 tests/                  — Pest test suite (240 tests, unit + feature)
-docs/integrations.md    - Tracking setup: script attributes, events, keeping personal data out of URLs
+docs/integrations.md    - Tracking setup: script attributes, events, keeping personal data out of URLs, excluding own visits, reverse proxies
 docs/api.md             - Read API reference (JSON/CSV, share tokens)
 scripts/hooks/pre-push  — Git hook: runs Pest before allowing push
 scripts/build-release.sh — Builds release zip with runtime files only

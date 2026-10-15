@@ -39,6 +39,7 @@
 - [x] Google Ads detection (gad_source/gad_campaignid auto-fill, JS + server-side)
 - [x] Stripping of gad\_\*, gbraid, wbraid, \_gl, ved from paths
 - [x] Realtime view — "N online now" badge (last 5 min)
+- [x] Exclude own visits: IP addresses and CIDR ranges per site or all sites (`exclude:add/list/remove`), per browser with `#puls-ignore`
 
 ---
 
@@ -219,6 +220,7 @@ From customer integrations. Traffic per channel and campaign exists; what happen
 - [ ] **Release marker edge clipping** — `.chart-release` labels clip at the edge on narrow screens (fixed for chart notes, not for release markers)
 - [ ] **Remove dead `renderTable()`** — no callers in dashboard.html
 - [x] **Shorter cache for the tracking script** — `?js` was cached 24 h, so new attributes took up to a day to reach every visitor. Now 1 h plus an ETag, so the hourly check is a bodyless 304
+- [x] **Visitor IP behind a proxy** — Puls behind a reverse proxy or Cloudflare saw every visitor as the proxy (visitor hashes differed by user agent only). `TRUSTED_PROXIES` lets those proxies set the visitor IP via `X-Forwarded-For` / `X-Real-IP`; Forge (Nginx + PHP-FPM) was not affected
 - [ ] **Dashboard performance at scale** — 30-day dashboard ~17 s on a 2M-pageview benchmark; real copies of customer data in `data/` can serve as benchmark data
 
 ---

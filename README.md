@@ -32,7 +32,7 @@ Puls is designed to be GDPR-friendly without consent banners:
 
 **Core**
 - **Cookieless** — GDPR-friendly by default, no consent banners needed
-- **Lightweight** — ~1.5KB tracking script, single PHP file backend
+- **Lightweight** — ~2KB tracking script (gzipped), single PHP file backend
 - **Zero dependencies** — PHP 8.3+ and SQLite, nothing else
 
 **Dashboard**
