@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- The `+ Note` form says where to edit or remove notes, with a link that opens Settings.
 - The tracking script is cached for one hour instead of 24, with an ETag. Script changes and new attributes reach every visitor within an hour, and the hourly check is answered with an empty 304 when nothing changed.
 
 ### Fixed

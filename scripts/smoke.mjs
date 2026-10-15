@@ -340,6 +340,10 @@ async function main() {
     await waitFor(() => [...document.querySelectorAll('#chart-card .chart-note')].some((n) => /Smoke note, clarified/.test(n.title)), 'relabelled note on the chart', 8000);
     item.querySelector('button').click();
     await waitFor(() => ![...document.querySelectorAll('#chart-card .chart-note')].some((n) => /Smoke note/.test(n.title)), 'removed note leaves the chart', 8000);
+    window.closeMenu();
+    q('.note-toggle').click();
+    q('.note-form-hint button').click();
+    if (!q('#note-form').hidden || !q('#menu-panel').classList.contains('open')) fails.push('note form hint closes the form and opens Settings');
     return fails;
   };
   const result2 = await send('Runtime.evaluate', { expression: `(${loggedIn.toString()})()`, awaitPromise: true, returnByValue: true });
