@@ -80,7 +80,6 @@ function runRename(string $tmpDir, ?string $old = null, ?string $new = null): ar
     file_put_contents($wrapper, "<?php\n"
         . "\$_ENV['DB_PATH'] = " . var_export($tmpDir . '/test.sqlite', true) . ";\n"
         . "\$_ENV['USERS_FILE'] = " . var_export($tmpDir . '/users.json', true) . ";\n"
-        . "\$_ENV['APP_KEY'] = 'test-key';\n"
         . "// Override \$argv\n"
         . "\$argv = ['puls', 'sites:rename'"
         . ($old !== null ? ", " . var_export($old, true) : "")

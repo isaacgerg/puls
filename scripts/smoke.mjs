@@ -65,7 +65,7 @@ async function main() {
   // 2. Serve it
   const usersFile = join(tmp, 'users.json');
   execFileSync('php', ['-r', 'file_put_contents($argv[1], json_encode(["smoke" => ["password" => password_hash("smoke-pass", PASSWORD_BCRYPT, ["cost" => 4]), "sites" => []]]));', usersFile]);
-  const env = { ...process.env, DB_PATH: dbPath, APP_KEY: 'smoke-test-key', USERS_FILE: usersFile };
+  const env = { ...process.env, DB_PATH: dbPath, USERS_FILE: usersFile };
   children.push(spawn('php', ['-S', `localhost:${PHP_PORT}`, '-t', join(root, 'public')], { env, stdio: 'ignore' }));
   const base = `http://localhost:${PHP_PORT}`;
   await waitForHttp(`${base}/?health`);

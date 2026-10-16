@@ -44,7 +44,7 @@ public/index.php        — All backend logic (routing, tracking, API, auth, bot
 public/dashboard.html   — Self-contained dashboard (CSS + JS, no build step)
 config.php              — Configuration (loads .env, auto-detects Forge paths)
 .env.example            — Environment template (checked in)
-.env                    — Environment config (gitignored, created by key:generate)
+.env                    - Optional environment config (gitignored, copy of .env.example)
 puls                    — CLI entrypoint (all management commands, interactive with readline)
 users.json              — User credentials (bcrypt hashed, auto-created by CLI)
 data/puls.sqlite        — SQLite database (auto-created, gitignored)
@@ -59,13 +59,13 @@ scripts/screenshots.sh  — Generates all README screenshots (headless Chrome + 
 scripts/smoke.mjs       — Dashboard smoke test: headless Chrome over DevTools protocol, fails on JS errors (no npm deps)
 scripts/seed-demo.php   — Seeds a demo SQLite database with realistic fake data
 Dockerfile              — Alpine + PHP built-in server (~93MB image)
-docker-entrypoint.sh    — Auto-generates APP_KEY, creates admin from ADMIN_PASSWORD env var
+docker-entrypoint.sh    - Creates .env from .env.example, creates admin from ADMIN_PASSWORD env var
 docker-compose.yml      — One-command setup with volume for /app/data
 .dockerignore           — Excludes dev files from Docker build
 .claude/hooks/php-lint.sh — PostToolUse hook: syntax-checks PHP after edit
 ```
 
-**Sensitive files:** `users.json` (accounts, password hashes), `data/*.sqlite` (visitor data, the local copy may be production data) and `.env` (APP_KEY) are gitignored and must stay that way. Change users and data only through the `puls` CLI. Don't print their contents, query real visitor data, or overwrite or delete them without asking first. Use `data/demo.sqlite` (`scripts/seed-demo.php`) for demos and experiments.
+**Sensitive files:** `users.json` (accounts, password hashes), `data/*.sqlite` (visitor data, the local copy may be production data) and `.env` are gitignored and must stay that way. Change users and data only through the `puls` CLI. Don't print their contents, query real visitor data, or overwrite or delete them without asking first. Use `data/demo.sqlite` (`scripts/seed-demo.php`) for demos and experiments.
 
 ### Key Design Decisions
 
@@ -83,7 +83,6 @@ docker-compose.yml      — One-command setup with volume for /app/data
 
 ```bash
 # Initial setup
-php puls key:generate
 php puls user:add admin
 
 # Install dev dependencies + activate pre-push hook

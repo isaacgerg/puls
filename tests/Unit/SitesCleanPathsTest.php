@@ -40,7 +40,6 @@ function runCleanPaths(string $tmpDir, array $args): array
     file_put_contents($wrapper, "<?php\n"
         . "\$_ENV['DB_PATH'] = " . var_export($tmpDir . '/test.sqlite', true) . ";\n"
         . "\$_ENV['USERS_FILE'] = " . var_export($tmpDir . '/users.json', true) . ";\n"
-        . "\$_ENV['APP_KEY'] = 'test-key';\n"
         . "\$argv = " . var_export(array_merge(['puls', 'sites:clean-paths'], $args), true) . ";\n"
         . "\$argc = count(\$argv);\n"
         . "require " . var_export($puls, true) . ";\n"

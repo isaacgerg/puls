@@ -15,7 +15,7 @@ Puls is a cookieless, lightweight analytics tool built with a single PHP file an
 
 Most analytics tools are either privacy-invasive (Google Analytics) or require Docker, Node.js, or managed hosting (Plausible, Umami). Fathom is great but costs $15+/month.
 
-Puls is **one PHP file**. Upload it, run `php puls key:generate`, and you're live. No containers, no queues, no external databases. SQLite handles everything. Perfect for freelancers, agencies, and anyone who wants analytics without infrastructure.
+Puls is **one PHP file**. Upload it, run `php puls user:add admin`, and you're live. No containers, no queues, no external databases. SQLite handles everything. Perfect for freelancers, agencies, and anyone who wants analytics without infrastructure.
 
 ## Privacy
 
@@ -122,7 +122,6 @@ Grab the [latest release](https://github.com/webready-se/puls/releases/latest) a
 ```bash
 unzip puls-*.zip
 cd puls-*
-php puls key:generate
 php puls user:add admin
 php -S localhost:8080 -t public
 ```
@@ -132,7 +131,6 @@ php -S localhost:8080 -t public
 ```bash
 git clone git@github.com:webready-se/puls.git
 cd puls
-php puls key:generate
 php puls user:add admin
 composer install        # dev dependencies + pre-push test hook
 php -S localhost:8080 -t public
@@ -185,7 +183,6 @@ Reading the data from another application: [docs/api.md](docs/api.md) (JSON and 
 All management goes through `php puls`:
 
 ```bash
-php puls key:generate                    # Generate APP_KEY + create .env
 php puls user:add <name>                 # Add user with full access
 php puls user:add <name> --sites=a,b     # Add user restricted to specific sites
 php puls user:edit <name>                # Edit user (sites, password)
@@ -209,10 +206,9 @@ All commands work without arguments — interactive pickers and prompts guide yo
 
 ## Configuration
 
-All configuration lives in `.env` (created by `php puls key:generate` from `.env.example`):
+Configuration is optional and lives in `.env`. Copy `.env.example` to `.env` and change what you need:
 
 ```env
-APP_KEY=base64:...          # Auto-generated, required (visitor hashes use a daily random salt, not this key)
 APP_URL=https://puls.example.com  # Base URL (used in CLI for share links)
 ALLOWED_ORIGINS=            # Allowed domains (comma-separated, includes subdomains)
 DB_PATH=data/puls.sqlite    # Database path (relative to project root)
@@ -308,7 +304,6 @@ Puls auto-detects Forge's release directory structure and stores
 
 ```bash
 cd /home/forge/puls.example.com/current
-php puls key:generate
 php puls user:add admin
 ```
 
@@ -328,17 +323,17 @@ $ACTIVATE_RELEASE()
 
 1. Upload all files via FTP/SSH
 2. Point the domain to the `public/` directory
-3. Run `php puls key:generate && php puls user:add admin`
+3. Run `php puls user:add admin`
 4. Done
 
 **Without SSH access:**
 
-1. Run `php puls key:generate && php puls user:add admin` locally
-2. Upload all files including `.env` and `users.json` via FTP
+1. Run `php puls user:add admin` locally
+2. Upload all files including `users.json` (and `.env` if you created one) via FTP
 3. Point the domain to the `public/` directory
 4. Done
 
-> **Important:** Keep `.env` and `users.json` in the project root — never place them inside `public/`. They contain your secret key and password hashes.
+> **Important:** Keep `.env` and `users.json` in the project root, never inside `public/`. They contain your settings and password hashes.
 
 ## License
 

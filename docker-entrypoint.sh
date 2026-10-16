@@ -9,19 +9,6 @@ if [ ! -f .env ]; then
     cp .env.example .env
 fi
 
-# Generate APP_KEY if not set (env var or .env file)
-if [ -z "$APP_KEY" ] && ! grep -q '^APP_KEY=.\+' .env 2>/dev/null; then
-    echo "→ Generating APP_KEY..."
-    KEY="base64:$(php -r "echo base64_encode(random_bytes(32));")"
-    sed -i "s|^APP_KEY=.*|APP_KEY=$KEY|" .env
-    echo "  APP_KEY set."
-fi
-
-# Write APP_KEY from env var into .env if provided externally
-if [ -n "$APP_KEY" ]; then
-    sed -i "s|^APP_KEY=.*|APP_KEY=$APP_KEY|" .env
-fi
-
 # Set USERS_FILE in .env so config.php picks it up
 if grep -q '^USERS_FILE=' .env; then
     sed -i "s|^USERS_FILE=.*|USERS_FILE=$USERS_FILE|" .env

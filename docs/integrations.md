@@ -464,7 +464,6 @@ First-time setup:
 
 ```bash
 cd /home/forge/your-site/current
-php puls key:generate
 php puls user:add admin
 ```
 

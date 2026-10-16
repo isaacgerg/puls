@@ -4,7 +4,6 @@
  * Puls CLI
  *
  * Usage:
- *   php puls key:generate                        Generate a new APP_KEY
  *   php puls user:add <name> [--sites=a,b]       Add a user
  *   php puls user:edit [<name>]                   Edit user (sites, password)
  *   php puls user:remove [<name>]                Remove a user
@@ -26,7 +25,6 @@ $config = require __DIR__ . '/config.php';
 $command = $argv[1] ?? 'help';
 
 match ($command) {
-    'key:generate'  => generateKey(),
     'user:add'      => userAdd($config, $argv[2] ?? null, $argv),
     'user:edit'     => userEdit($config, $argv[2] ?? null),
     'user:remove'   => userRemove($config['users_file'], $argv[2] ?? null),
@@ -59,36 +57,6 @@ function prompt(string $label = ''): string
         flush();
     }
     return trim(fgets(STDIN));
-}
-
-// =====================================================================
-// key:generate
-// =====================================================================
-
-function generateKey(): void
-{
-    $key = 'base64:' . base64_encode(random_bytes(32));
-    $envFile = __DIR__ . '/.env';
-
-    if (!file_exists($envFile)) {
-        $example = __DIR__ . '/.env.example';
-        if (file_exists($example)) {
-            copy($example, $envFile);
-        } else {
-            file_put_contents($envFile, "APP_KEY=\n");
-        }
-    }
-
-    $contents = file_get_contents($envFile);
-
-    if (preg_match('/^APP_KEY=.*$/m', $contents)) {
-        $contents = preg_replace('/^APP_KEY=.*$/m', "APP_KEY={$key}", $contents);
-    } else {
-        $contents = "APP_KEY={$key}\n" . $contents;
-    }
-
-    file_put_contents($envFile, $contents);
-    echo "APP_KEY set: {$key}\n";
 }
 
 // =====================================================================
@@ -1271,7 +1239,6 @@ function printHelp(): void
     Puls CLI
 
     Usage:
-      php puls key:generate                    Generate a new APP_KEY
       php puls user:add <name> [--sites=a,b]   Add a user
       php puls user:edit [<name>]               Edit user (sites, password)
       php puls user:remove [<name>]             Remove a user

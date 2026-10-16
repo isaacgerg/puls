@@ -52,7 +52,6 @@ jobs:
         run: |
           cd build/puls-${{ steps.version.outputs.version }}
           cp .env.example .env
-          sed -i 's/APP_KEY=.*/APP_KEY=ci-test-key-32chars-placeholder/' .env
           php -S 127.0.0.1:8787 -t public &
           sleep 1
           status=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8787/?health)
