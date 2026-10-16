@@ -25,7 +25,7 @@
 - [x] Pre-push hook — tests run automatically before every push
 - [x] GitHub Actions CI (PHP 8.3–8.5)
 - [x] Broken link tracking (404/301/other) via Nginx post_action
-- [x] Data retention — auto-cleanup of old pageviews, bot visits, broken links
+- [x] Data retention - auto-cleanup of old bot visits and broken links (pageviews are kept)
 - [x] PWA — installable, pull-to-refresh
 - [x] Content-Security-Policy + security headers
 - [x] Trend indicators on stat cards (comparison with previous period)
@@ -60,7 +60,7 @@
 
 ## Epic 2: Stability & Data Hygiene
 
-- [x] Data retention — auto-cleanup of old pageviews/bot_visits/broken_links
+- [x] Data retention - auto-cleanup of old bot_visits/broken_links (pageviews are kept)
 - [x] Lazy migration check — version flag, no PRAGMA calls per request
 
 ## Epic 3: Security & Hardening
