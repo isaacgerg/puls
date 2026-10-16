@@ -458,7 +458,7 @@ First public release.
 - Collect endpoint payload size limit (10 KB)
 - Hourly session ID regeneration
 - Audit log for login attempts
-- Data retention — auto-cleanup of old pageviews, bot visits, broken links
+- Data retention - auto-cleanup of old bot visits and broken links (pageviews are kept)
 
 ### CI
 

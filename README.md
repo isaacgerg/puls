@@ -27,6 +27,7 @@ Puls is designed to be GDPR-friendly without consent banners:
 - **No PII** — no names, emails, or identifiers stored
 - **Data collected:** page path, referrer domain, browser, device type, UTM params, language, country (from Accept-Language header)
 - **Not collected:** IP addresses, cookies, personal data, fingerprints
+- **Retention:** pageviews are kept until you delete them, custom events for 400 days (`EVENTS_RETENTION_DAYS`), bot visits for 90 days and broken links for 30 days after the last hit
 
 ## Features
 
