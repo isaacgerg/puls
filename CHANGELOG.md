@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Fixed
+
+- Requests that arrived while an upgrade migrated the database failed with "database is locked": `?health` answered 503 and pageviews were dropped. They now wait for the migration and are handled normally. Seen as failed Forge health checks right after a deploy.
+
 ## [1.25.0] - 2026-10-16
 
 ### Changed
