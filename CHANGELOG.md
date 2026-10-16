@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [1.25.0] - 2026-10-16
 
 ### Changed
 
@@ -466,6 +466,7 @@ First public release.
 - GitHub Actions on PHP 8.3 / 8.4 / 8.5
 - Pre-push hook — tests run before every push
 
+[1.25.0]: https://github.com/webready-se/puls/releases/tag/v1.25.0
 [1.24.0]: https://github.com/webready-se/puls/releases/tag/v1.24.0
 [1.23.0]: https://github.com/webready-se/puls/releases/tag/v1.23.0
 [1.22.0]: https://github.com/webready-se/puls/releases/tag/v1.22.0
