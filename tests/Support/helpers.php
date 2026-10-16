@@ -116,7 +116,6 @@ function runCli(string $tmpDir, string $command, array $args = [], ?string $stdi
     file_put_contents($wrapper, "<?php\n"
         . "\$_ENV['DB_PATH'] = " . var_export($tmpDir . '/test.sqlite', true) . ";\n"
         . "\$_ENV['USERS_FILE'] = " . var_export($tmpDir . '/users.json', true) . ";\n"
-        . "\$_ENV['APP_KEY'] = 'test-key';\n"
         . "\$argv = ['puls', " . var_export($command, true) . $argsExport . "];\n"
         . "\$argc = count(\$argv);\n"
         . "require " . var_export($puls, true) . ";\n"

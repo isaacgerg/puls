@@ -31,15 +31,7 @@ function resolve_path(string $path): string
     return $dir . '/' . $path;
 }
 
-$appKey = $_ENV['APP_KEY'] ?? '';
-if (empty($appKey) && file_exists($envFile)) {
-    if (PHP_SAPI !== 'cli') http_response_code(500);
-    exit('APP_KEY is not set. Run: php puls key:generate');
-}
-
 return [
-    'app_key' => $appKey,
-
     'app_name' => $_ENV['APP_NAME'] ?? 'Puls',
 
     'app_tagline' => $_ENV['APP_TAGLINE'] ?? 'See your traffic. Respect their privacy.',

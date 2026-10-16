@@ -20,7 +20,6 @@ Thanks for your interest in contributing! Puls is intentionally minimal — one 
 ```bash
 git clone git@github.com:your-fork/puls.git
 cd puls
-php puls key:generate
 php puls user:add admin
 composer install          # installs Pest + activates pre-push hook
 php -S localhost:8080 -t public

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Removed
+
+- `APP_KEY` and `php puls key:generate`. Since 1.25.0 the visitor hash uses a daily random salt, so the key was not used for anything. `.env` is now optional: copy `.env.example` when you want to change a setting. A leftover `APP_KEY` in `.env` is ignored, so existing installs need no change.
+
 ### Fixed
 
 - Requests that arrived while an upgrade migrated the database failed with "database is locked": `?health` answered 503 and pageviews were dropped. They now wait for the migration and are handled normally. Seen as failed Forge health checks right after a deploy.

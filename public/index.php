@@ -784,7 +784,7 @@ function client_ip(array $server, array $trustedProxies): string
 /**
  * The visitor id: a hash of IP and user agent with a salt that exists for one day.
  * Once the salt is deleted the hash can never be computed again, not even with
- * APP_KEY or server access, so stored rows cannot be tied back to a visitor.
+ * server access, so stored rows cannot be tied back to a visitor.
  */
 function visitor_hash(PDO $db, string $ip, string $ua): string
 {
