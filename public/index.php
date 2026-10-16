@@ -1986,6 +1986,27 @@ function run_migrations(PDO $db): void
 
     if ($version >= $currentVersion) return;
 
+    // One request migrates while the others wait for its write lock (PDO's busy
+    // timeout) and then find the schema current. Taking the lock up front matters:
+    // a transaction that reads first and writes later fails at once with "database
+    // is locked" when another request holds the lock, without waiting.
+    $db->exec('BEGIN IMMEDIATE');
+    try {
+        $version = (int) $db->query('PRAGMA user_version')->fetchColumn();
+        if ($version < $currentVersion) migrate_schema($db, $version, $currentVersion);
+        $db->exec('COMMIT');
+    } catch (Throwable $e) {
+        $db->exec('ROLLBACK');
+        throw $e;
+    }
+}
+
+/**
+ * Bring the schema from $version to $currentVersion. Runs inside the write
+ * transaction of run_migrations(), so a migration must not open its own.
+ */
+function migrate_schema(PDO $db, int $version, int $currentVersion): void
+{
     // v1: UTM columns
     $cols = array_column($db->query('PRAGMA table_info(pageviews)')->fetchAll(PDO::FETCH_ASSOC), 'name');
     if (!in_array('utm_source', $cols)) {
@@ -2344,11 +2365,9 @@ function run_migrations(PDO $db): void
     if ($version < 20) {
         $rows = $db->query("SELECT id, path FROM pageviews WHERE path LIKE '%brid=%' AND lower(utm_source) IN ('fb', 'ig', 'msg', 'an')")->fetchAll(PDO::FETCH_ASSOC);
         $update = $db->prepare('UPDATE pageviews SET path = ? WHERE id = ?');
-        $db->beginTransaction();
         foreach ($rows as $row) {
             $update->execute([normalize_path($row['path'], meta_ad_params()), $row['id']]);
         }
-        $db->commit();
     }
 
     // v21: IP addresses and ranges whose pageviews and events are not stored (site '*' = all sites)
@@ -2373,7 +2392,6 @@ function run_migrations(PDO $db): void
             salt TEXT NOT NULL
         )');
         $db->exec('PRAGMA secure_delete = ON');
-        $db->beginTransaction();
         $db->exec('CREATE TEMP TABLE hash_map (old TEXT PRIMARY KEY, new TEXT NOT NULL)');
         $db->exec('INSERT INTO hash_map (old, new)
             SELECT visitor_hash, lower(hex(randomblob(32)))
@@ -2382,7 +2400,6 @@ function run_migrations(PDO $db): void
             $db->exec("UPDATE {$table} SET visitor_hash = (SELECT new FROM hash_map WHERE old = {$table}.visitor_hash)");
         }
         $db->exec('DROP TABLE hash_map');
-        $db->commit();
     }
 
     $db->exec('PRAGMA user_version = ' . $currentVersion);
