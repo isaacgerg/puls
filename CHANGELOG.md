@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Changed
+
+- The visitor id is salted with a random value that exists for one day and is deleted at the first request of the next day, instead of with `APP_KEY`. Before, whoever had `APP_KEY` and a visitor's IP and user agent could compute that visitor's hash for any past date; now no one can, so stored pageviews and events cannot be tied back to a visitor. Unique visitors, sessions, bounce rate and funnels are counted as before. The upgrade replaces every stored hash with a random value, one per old hash, so history keeps its numbers. Visitors on the day of the upgrade are counted twice, once before and once after. `APP_KEY` is still required.
+
 ## [1.24.0] - 2026-10-15
 
 ### Added

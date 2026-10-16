@@ -631,8 +631,7 @@ function handle_collect(array $config): void
     $ip = client_ip($_SERVER, $config['trusted_proxies'] ?? []);
     if (is_excluded_ip($db, $site, $ip)) return;
 
-    $salt = date('Y-m-d') . 'puls-' . $config['app_key'];
-    $hash = hash('sha256', $ip . ($_SERVER['HTTP_USER_AGENT'] ?? '') . $salt);
+    $hash = visitor_hash($db, $ip, $_SERVER['HTTP_USER_AGENT'] ?? '');
 
     $browser = detect_browser($ua);
     $device = detect_device((int)($input['w'] ?? 0));
@@ -726,8 +725,7 @@ function handle_event(array $config): void
         $eventData = substr(json_encode($input['event_data']), 0, 1000);
     }
 
-    $salt = date('Y-m-d') . 'puls-' . $config['app_key'];
-    $hash = hash('sha256', $ip . ($_SERVER['HTTP_USER_AGENT'] ?? '') . $salt);
+    $hash = visitor_hash($db, $ip, $_SERVER['HTTP_USER_AGENT'] ?? '');
 
     // Dedup: skip same event with same data from same visitor within 10 seconds.
     // IS (not =) so two events without data also match each other (NULL IS NULL).
@@ -781,6 +779,36 @@ function client_ip(array $server, array $trustedProxies): string
         if (!$trusted($hop)) break;
     }
     return $ip;
+}
+
+/**
+ * The visitor id: a hash of IP and user agent with a salt that exists for one day.
+ * Once the salt is deleted the hash can never be computed again, not even with
+ * APP_KEY or server access, so stored rows cannot be tied back to a visitor.
+ */
+function visitor_hash(PDO $db, string $ip, string $ua): string
+{
+    return hash('sha256', $ip . $ua . daily_salt($db));
+}
+
+/**
+ * Today's random salt. The first request of a new day creates it and deletes
+ * every other day's salt. secure_delete overwrites the deleted salt on disk
+ * instead of leaving it in free pages of the database file.
+ */
+function daily_salt(PDO $db): string
+{
+    $today = date('Y-m-d');
+    $select = $db->prepare('SELECT salt FROM salts WHERE date = ?');
+    $select->execute([$today]);
+    $salt = $select->fetchColumn();
+    if ($salt !== false) return $salt;
+
+    $db->exec('PRAGMA secure_delete = ON');
+    $db->prepare('INSERT OR IGNORE INTO salts (date, salt) VALUES (?, ?)')->execute([$today, bin2hex(random_bytes(32))]);
+    $db->prepare('DELETE FROM salts WHERE date != ?')->execute([$today]);
+    $select->execute([$today]);
+    return $select->fetchColumn();
 }
 
 /**
@@ -1942,7 +1970,7 @@ function meta_ad_params(): array
 
 function run_migrations(PDO $db): void
 {
-    $currentVersion = 21; // Bump this when adding new migrations
+    $currentVersion = 22; // Bump this when adding new migrations
 
     // Use SQLite's built-in PRAGMA user_version (per-database, no external file)
     $version = (int) $db->query('PRAGMA user_version')->fetchColumn();
@@ -2333,6 +2361,28 @@ function run_migrations(PDO $db): void
             created_at TEXT NOT NULL
         )');
         $db->exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_excluded_ips_unique ON excluded_ips (site, ip)');
+    }
+
+    // v22: daily random salt for the visitor hash. Hashes stored before it were
+    // salted with the constant APP_KEY and could be recomputed, so each is replaced
+    // with a random value: one per old hash, which keeps a visitor's rows of a day
+    // together (unique visitors, bounces, funnels) without a way back to the visitor.
+    if ($version < 22) {
+        $db->exec('CREATE TABLE IF NOT EXISTS salts (
+            date TEXT PRIMARY KEY,
+            salt TEXT NOT NULL
+        )');
+        $db->exec('PRAGMA secure_delete = ON');
+        $db->beginTransaction();
+        $db->exec('CREATE TEMP TABLE hash_map (old TEXT PRIMARY KEY, new TEXT NOT NULL)');
+        $db->exec('INSERT INTO hash_map (old, new)
+            SELECT visitor_hash, lower(hex(randomblob(32)))
+            FROM (SELECT visitor_hash FROM pageviews UNION SELECT visitor_hash FROM events)');
+        foreach (['pageviews', 'events'] as $table) {
+            $db->exec("UPDATE {$table} SET visitor_hash = (SELECT new FROM hash_map WHERE old = {$table}.visitor_hash)");
+        }
+        $db->exec('DROP TABLE hash_map');
+        $db->commit();
     }
 
     $db->exec('PRAGMA user_version = ' . $currentVersion);
