@@ -6,7 +6,7 @@ test('a fresh database has every table and the current schema version', function
     $db = get_db($dir . '/puls.sqlite');
 
     $tables = $db->query("SELECT name FROM sqlite_master WHERE type = 'table'")->fetchAll(PDO::FETCH_COLUMN);
-    expect($tables)->toContain('pageviews', 'events', 'goals', 'share_tokens', 'app_versions', 'breakdowns', 'annotations', 'excluded_ips');
+    expect($tables)->toContain('pageviews', 'events', 'goals', 'share_tokens', 'app_versions', 'breakdowns', 'annotations', 'excluded_ips', 'salts');
 
     $pvCols = array_column($db->query('PRAGMA table_info(pageviews)')->fetchAll(PDO::FETCH_ASSOC), 'name');
     expect($pvCols)->toContain('app_version');

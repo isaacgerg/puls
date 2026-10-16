@@ -74,7 +74,7 @@ docker-compose.yml      — One-command setup with volume for /app/data
 - **Session-based auth** — CSRF-protected, brute-force lockout, bcrypt passwords
 - **Per-user site access** — users can be restricted to specific sites
 - **Self-contained dashboard** — no build tools, no CDN, works offline after load
-- **Privacy-first** — daily-rotating visitor hash (IP + UA + APP_KEY salt), no cookies, no PII stored
+- **Privacy-first** - visitor hash of IP + UA + a random salt per day (`salts` table, deleted at the first request of the next day), so old hashes can never be recomputed; no cookies, no PII stored
 - **Forge auto-detection** — `resolve_path()` in config.php detects `/releases/\d+/` pattern and resolves to site root
 - **Sender owns the data** - Puls gives sites the controls (`data-query`, `data-path`, no PII in `puls.track`) and documents the risks, but does not inspect, mask or audit what they send. Masking was considered and declined: pattern matching would silently damage legitimate paths and give false confidence
 - **Data quality** — normalize_path strips tracking params (fbclid, gclid, utm_*) and, for Meta ad traffic only, Meta's per-click brid (media_type is kept: it records the ad format); normalize_referrer groups social domains, IDN decode

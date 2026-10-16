@@ -22,7 +22,7 @@ Puls is **one PHP file**. Upload it, run `php puls key:generate`, and you're liv
 Puls is designed to be GDPR-friendly without consent banners:
 
 - **No cookies** — ever
-- **No IP storage** — visitor hashes rotate daily and use a server-side salt
+- **No IP storage** - the visitor id is a hash of IP and user agent with a random salt that is deleted after the day, so it can never be computed again, not even by whoever runs the server
 - **No fingerprinting** — no canvas, font, or WebGL tricks
 - **No PII** — no names, emails, or identifiers stored
 - **Data collected:** page path, referrer domain, browser, device type, UTM params, language, country (from Accept-Language header)
@@ -211,7 +211,7 @@ All commands work without arguments — interactive pickers and prompts guide yo
 All configuration lives in `.env` (created by `php puls key:generate` from `.env.example`):
 
 ```env
-APP_KEY=base64:...          # Auto-generated, used for visitor hashing
+APP_KEY=base64:...          # Auto-generated, required (visitor hashes use a daily random salt, not this key)
 APP_URL=https://puls.example.com  # Base URL (used in CLI for share links)
 ALLOWED_ORIGINS=            # Allowed domains (comma-separated, includes subdomains)
 DB_PATH=data/puls.sqlite    # Database path (relative to project root)
