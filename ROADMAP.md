@@ -137,6 +137,17 @@
 - [x] **One-click deploy buttons** — Render, Railway, Fly.io configs + badge in README
 - [x] **White-label** — configurable branding (APP_NAME, APP_TAGLINE, APP_ACCENT) via .env
 
+Seven stars after seven months: the code is not the problem, being found is. Everything here costs time, not money.
+
+- [x] **GitHub topics** - analytics, web-analytics, privacy, self-hosted, cookieless, gdpr, google-analytics-alternative, php, sqlite, single-file, so the repo shows up in topic search. No homepage link yet: puls.wrlabs.se is the production install and only shows a login
+- [ ] **README as a landing page** - every channel (topic search, awesome lists, a launch post) lands there, so it decides whether a visitor tries Puls. Lead with what few others show (AI crawlers and other bots, broken links from Nginx, one file on any PHP host), a three-line quick start right under the screenshot (file drop first, Docker second: the pitch is no containers), a short feature list instead of 45 bullets, the live demo link, and the Nginx, Apache and Forge details moved to `docs/`
+- [ ] **Live demo** - a separate install with seeded demo data, reseeded nightly, shown read-only through a share link. Never the production install or real customer data. Linked at the top of README and set as the repo homepage
+- [ ] **Social preview image** - for links shared on Hacker News, Reddit and Slack (uploaded in the repo settings)
+- [ ] **awesome-selfhosted** - PR to the Analytics section; check the list's current requirements first
+- [ ] **Launch post** - Show HN and r/selfhosted, once the demo exists. The hook is "one PHP file on any host"
+- [ ] **Docker image on GHCR** - published by the release workflow, so `docker run ghcr.io/webready-se/puls` works without building locally (free for public images)
+- [ ] **WordPress snippet** - how to add the script in WordPress, in `docs/integrations.md`. A plugin is a larger, ongoing commitment
+
 ## Epic 12: Accessibility & Polish
 
 Lighthouse: Performance 100, A11y 71 → target 90+. No visual regressions.
@@ -240,6 +251,7 @@ From a site with 4 goals and 9 saved cards: the page got long, the chart ended u
 - [x] **Shorter cache for the tracking script** — `?js` was cached 24 h, so new attributes took up to a day to reach every visitor. Now 1 h plus an ETag, so the hourly check is a bodyless 304
 - [x] **Visitor IP behind a proxy** — Puls behind a reverse proxy or Cloudflare saw every visitor as the proxy (visitor hashes differed by user agent only). `TRUSTED_PROXIES` lets those proxies set the visitor IP via `X-Forwarded-For` / `X-Real-IP`; Forge (Nginx + PHP-FPM) was not affected
 - [ ] **Dashboard performance at scale** — 30-day dashboard ~17 s on a 2M-pageview benchmark; real copies of customer data in `data/` can serve as benchmark data
+- [ ] **`PRAGMA synchronous = NORMAL`** - FULL today. In WAL mode NORMAL keeps the database intact on power loss (only the latest writes can be lost) and speeds up writes; measure with the 2M benchmark. Not OFF, which risks a corrupt database
 - [x] **Pull-to-refresh keeps the view** - the installed app reloaded the last N days instead of a custom date range and left out the share token; it now goes through the same request as the dashboard
 
 ---
@@ -258,3 +270,4 @@ Things to explore later — not committed to.
 - **Internal-site mode** — for logged-in apps: hide referrers and campaigns, show use per week and per role
 - **API pagination** — page past 1,000 rows in `expand`
 - **Saved card across events** - one card for several events that share a group key (e.g. two events with `where`); sending one event is the workaround today
+- **Respect GPC as an option** - `data-respect-gpc` on the script tag skips tracking when the browser sends Global Privacy Control. Off by default: Puls stores no personal data, GPC's legal weight concerns selling or sharing it, and Brave and DuckDuckGo send it by default, so honoring it everywhere would undercount. Do Not Track is effectively gone (W3C ended it, Safari removed it in 2019)
