@@ -74,6 +74,7 @@ docker-compose.yml      — One-command setup with volume for /app/data
 - **Session-based auth** — CSRF-protected, brute-force lockout, bcrypt passwords
 - **Per-user site access** — users can be restricted to specific sites
 - **Self-contained dashboard** — no build tools, no CDN, works offline after load
+- **Dashboard islands** - `render()` wraps each section in `island(key, html)`, and `patchIslands()` replaces only the islands whose HTML changed since the last render of the same view, so the 60 s refresh leaves the rest of the DOM alone (hover, focus, open drill-downs, tabs, chart scroll). A new section goes through `island()` with a unique key; a list of cards is one `data-island-list` element with a `data-island` key per card
 - **Privacy-first** - visitor hash of IP + UA + a random salt per day (`salts` table, deleted at the first request of the next day), so old hashes can never be recomputed; no cookies, no PII stored
 - **Forge auto-detection** — `resolve_path()` in config.php detects `/releases/\d+/` pattern and resolves to site root
 - **Sender owns the data** - Puls gives sites the controls (`data-query`, `data-path`, no PII in `puls.track`) and documents the risks, but does not inspect, mask or audit what they send. Masking was considered and declined: pattern matching would silently damage legitimate paths and give false confidence

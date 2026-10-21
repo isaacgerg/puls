@@ -171,6 +171,23 @@ async function main() {
     expect(q('.breakdown-card .event-new'), 'NEW badge on breakdown card');
     expect(/^\d+(\.\d)?% bounce$/.test(q('[data-panel="entry"] .trow-bounce')?.textContent || ''), 'bounce rate on entry pages');
 
+    // Order: the chart right after the numbers, saved cards after pages and sources
+    const isle = (k) => q(`#app [data-island="${k}"]`);
+    const order = ['stats', 'chart', 'pages', 'traffic', 'breakdowns', 'bots'].map(isle);
+    expect(order.every((el, i) => el && (!i || order[i - 1].compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING)), 'sections in order: numbers, chart, pages, sources, saved cards, bots');
+
+    // Islands: a refresh of the same view keeps unchanged parts as the same DOM, an open drill-down included
+    const card = q('.breakdown-card'), chartCard = q('#chart-card');
+    q('.breakdown-card .breakdown-open').click();
+    await waitFor(() => q('.breakdown-card .event-detail') && q('.breakdown-card .event-detail')._state, 'card drill-down before a refresh');
+    const cardDetail = q('.breakdown-card .event-detail');
+    q('#sr-status').textContent = '';
+    q('.period-btn.active').click();
+    await waitFor(() => /Showing/.test(q('#sr-status').textContent), 'refresh of the same view');
+    expect(q('.breakdown-card') === card && q('#chart-card') === chartCard, 'unchanged islands keep their DOM across a refresh');
+    expect(q('.breakdown-card .event-detail') === cardDetail, 'open drill-down survives a refresh untouched');
+    q('.breakdown-card .breakdown-open').click();
+
     // Hostile event name and path: shown as text, attributes intact, clicking runs no injected code
     const hostile = 'x"><img src=x onerror="window.__xss=1">' + "');window.__xss=2;('";
     expect(!document.querySelector('#app [onerror]'), 'no injected attribute from a hostile name');
@@ -321,6 +338,26 @@ async function main() {
     await waitFor(() => [...document.querySelectorAll('.goal-row')].some((r) => r.textContent.includes('pwa_install') && r.textContent.includes('No hits yet')), 'unseen event goal shows No hits yet', 8000);
     if (q('.menu-close').getAttribute('aria-label') !== 'Close settings') fails.push('settings close button is labelled');
 
+    // Removing a card or goal waits behind an Undo toast; leaving the page sends it
+    const toast = q('#toast');
+    q('.breakdown-card .goal-remove').click();
+    if (q('.breakdown-card') || toast.hidden || !/Card removed/.test(toast.textContent)) fails.push('removing a card hides it and shows the Undo toast');
+    q('#toast-undo').click();
+    if (!q('.breakdown-card') || !toast.hidden) fails.push('Undo brings the card back');
+    const goalCount = document.querySelectorAll('.goal-row').length;
+    q('.goal-row .goal-remove').click();
+    if (document.querySelectorAll('.goal-row').length !== goalCount - 1 || !/Goal removed/.test(toast.textContent)) fails.push('removing a goal hides it behind the Undo toast');
+    q('#toast-undo').click();
+    if (document.querySelectorAll('.goal-row').length !== goalCount) fails.push('Undo brings the goal back');
+    q('.breakdown-card .goal-remove').click();
+    window.dispatchEvent(new Event('pagehide'));
+    let removed = false;
+    for (let t = 0; t < 30 && !removed; t++) {
+      await sleep(100);
+      removed = !(await (await fetch('/?api&days=7&site=demo.example.com')).json()).breakdowns.length;
+    }
+    if (!removed) fails.push('a waiting removal is sent when the page is left');
+
     // Annotations: + Note creates, Settings relabels and removes
     window.closeMenu();
     const toggle = q('.note-toggle');
@@ -357,7 +394,7 @@ async function main() {
     failures.forEach((f) => console.error('  - ' + f));
     process.exitCode = 1;
   } else {
-    console.log('Dashboard smoke test passed: load, release markers, breakdown card and its details, hostile names render as text, entry page bounce, annotations (shared view, add, relabel, remove), keyboard drill-down, group by version, funnel incl. unseen event, compare, 90 days, light theme, logged-in goal for an unseen event, tabs pattern, dialog focus trap, status announcements. No JS errors.');
+    console.log('Dashboard smoke test passed: load, section order, islands kept across a refresh, release markers, breakdown card and its details, undo for card and goal removal, hostile names render as text, entry page bounce, annotations (shared view, add, relabel, remove), keyboard drill-down, group by version, funnel incl. unseen event, compare, 90 days, light theme, logged-in goal for an unseen event, tabs pattern, dialog focus trap, status announcements. No JS errors.');
   }
 }
 

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- The dashboard shows the chart right after the numbers, then goals, the summary, pages and sources. Saved cards come after pages and sources, so many cards no longer push the chart down the page.
+- The 60-second refresh replaces only the parts of the dashboard whose content changed. Everything else stays as it is: an open drill-down, the chosen tab, the chart's scroll position and whatever is under the pointer. Before, it redrew the whole page, so content jumped and a click could land on another card. The refresh also waits while the tab is hidden or you used the page in the last 10 seconds, and a refresh that fails keeps the current view instead of showing an error.
+- Removing a saved card or a goal shows an Undo button for six seconds before the removal is saved. Leaving the page in that time saves it right away.
+
 ### Removed
 
 - `APP_KEY` and `php puls key:generate`. Since 1.25.0 the visitor hash uses a daily random salt, so the key was not used for anything. `.env` is now optional: copy `.env.example` when you want to change a setting. A leftover `APP_KEY` in `.env` is ignored, so existing installs need no change.

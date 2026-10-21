@@ -752,6 +752,10 @@
   }
   @keyframes spin { to { transform: rotate(360deg); } }
   .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+  .toast { position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 90; display: flex; align-items: center; gap: 10px; max-width: calc(100% - 32px); padding: 8px 8px 8px 16px; border-radius: 10px; background: var(--text); color: var(--bg); font-size: 13px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+  .toast[hidden] { display: none; }
+  .toast button { background: none; border: none; color: inherit; font: inherit; font-weight: 700; text-decoration: underline; cursor: pointer; padding: 4px 8px; border-radius: 6px; }
+  .toast button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
   [role="tab"]:focus-visible, [role="button"]:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
   .skip-link {
     position: absolute; left: -9999px; top: 0; z-index: 999;
@@ -816,6 +820,7 @@
 </div>
 
 <div class="sr-only" id="sr-status" role="status" aria-live="polite" aria-atomic="true"></div>
+<div class="toast" id="toast" hidden><span id="toast-text"></span><button type="button" id="toast-undo">Undo</button></div>
 <main class="wrap" id="app">
   <div class="loading">
     <div class="loading-spinner" aria-hidden="true"></div>
@@ -997,8 +1002,10 @@
     return url;
   }
 
-  function load(days) {
+  // auto: the 60 s refresh, which keeps the current view if the request fails
+  function load(days, auto) {
     currentDays = days;
+    lastLoad = Date.now();
     let url;
     if (currentFrom && currentTo) {
       url = apiUrl('?api&from=' + currentFrom + '&to=' + currentTo);
@@ -1018,6 +1025,7 @@
       })
       .then(function(data) { if (data) render(data); })
       .catch(function() {
+        if (auto) return;
         app.innerHTML = '<div class="empty">' + icons.chart +
           '<p>Could not load data. Check that everything is configured correctly.</p></div>';
       });
@@ -1073,7 +1081,9 @@
       .catch(function() { load(7); });
   }
 
-  // Auto-refresh every 60 seconds (paused when UTM wizard is in use)
+  // Auto-refresh every 60 seconds. Held while the tab is hidden, while the viewer is using the
+  // page (pointer, scroll or keys in the last 10 s), and while the UTM wizard, the note form
+  // or a card rename is in use; it runs as soon as none of that applies.
   function utmWizardActive() {
     var path = document.getElementById('utm-path');
     var campaign = document.getElementById('utm-campaign');
@@ -1081,7 +1091,91 @@
     var domainEdited = domain && domain.value !== utmDomain();
     return (utmState && utmState.source) || (path && path.value) || (campaign && campaign.value) || domainEdited;
   }
-  setInterval(function() { if (!utmWizardActive() && !noteFormOpen() && !(document.activeElement && document.activeElement.isContentEditable)) load(currentDays); }, 60000);
+  var lastLoad = Date.now(), lastActivity = 0;
+  ['pointermove', 'pointerdown', 'keydown', 'wheel', 'scroll', 'touchstart'].forEach(function(type) {
+    document.addEventListener(type, function() { lastActivity = Date.now(); }, { capture: true, passive: true });
+  });
+  setInterval(function() {
+    if (Date.now() - lastLoad < 60000 || document.hidden || Date.now() - lastActivity < 10000) return;
+    if (utmWizardActive() || noteFormOpen() || (document.activeElement && document.activeElement.isContentEditable)) return;
+    load(currentDays, true);
+  }, 5000);
+
+  // --- Islands ---
+  // Each section is an island: a <div data-island="key"> around what its render function
+  // returns. A refresh of the same view replaces only the islands whose HTML changed, so the
+  // rest keep their DOM: hover, focus, open drill-downs, tabs and chart scroll survive, and
+  // nothing is swapped under the pointer. An island marked data-island-list holds islands of
+  // its own (one per saved card); its own markup stays the same.
+  var islandHtml = {};
+  function island(key, html) {
+    return html ? '<div data-island="' + esc(key) + '">' + html + '</div>' : '';
+  }
+
+  // Brings #app to the given HTML and returns the islands it inserted
+  function patchIslands(html, sameView) {
+    var tpl = document.createElement('template');
+    tpl.innerHTML = html;
+    var fresh = {};
+    tpl.content.querySelectorAll('[data-island]').forEach(function(el) { fresh[el.getAttribute('data-island')] = el.outerHTML; });
+    var before = sameView ? islandHtml : {};
+    var added = [];
+    (function patch(parent, next) {
+      var old = {};
+      [].forEach.call(parent.children, function(el) { if (el.hasAttribute('data-island')) old[el.getAttribute('data-island')] = el; });
+      var nodes = [].map.call(next.children, function(el) {
+        var key = el.getAttribute('data-island'), cur = key !== null && old[key];
+        if (cur && before[key] === fresh[key]) return cur;
+        if (cur && el.hasAttribute('data-island-list')) { patch(cur, el); return cur; }
+        added.push(el);
+        return el;
+      });
+      // Remove what is gone first, then insert and move, so kept islands are not detached
+      [].slice.call(parent.children).forEach(function(el) { if (nodes.indexOf(el) < 0) el.remove(); });
+      nodes.forEach(function(el, i) { if (parent.children[i] !== el) parent.insertBefore(el, parent.children[i] || null); });
+    })(app, tpl.content);
+    islandHtml = fresh;
+    return added;
+  }
+
+  // --- Undo: a removal waits behind a toast for a few seconds before it is sent ---
+  var pendingRemoval = null, removalTimer = 0;
+  var toast = document.getElementById('toast');
+  function removing(item) { return !!pendingRemoval && pendingRemoval.item === item; }
+  // item identifies what render() should hide meanwhile; send(leaving) makes the request
+  function removeLater(item, message, send) {
+    sendRemoval();
+    pendingRemoval = { item: item, send: send };
+    document.getElementById('toast-text').textContent = message;
+    toast.hidden = false;
+    countdown();
+    announce(message);
+    render(lastData);
+  }
+  function countdown() { clearTimeout(removalTimer); removalTimer = setTimeout(sendRemoval, 6000); }
+  function endRemoval() {
+    var p = pendingRemoval;
+    pendingRemoval = null;
+    clearTimeout(removalTimer);
+    toast.hidden = true;
+    return p;
+  }
+  function sendRemoval(leaving) {
+    var p = endRemoval();
+    if (!p) return;
+    var req = p.send(leaving === true);
+    if (leaving !== true) req.then(function() { load(currentDays); });
+  }
+  document.getElementById('toast-undo').addEventListener('click', function() {
+    if (endRemoval()) { render(lastData); announce('Restored'); }
+  });
+  // The countdown waits while the pointer or keyboard focus is on the toast
+  toast.addEventListener('pointerenter', function() { clearTimeout(removalTimer); });
+  toast.addEventListener('focusin', function() { clearTimeout(removalTimer); });
+  toast.addEventListener('pointerleave', function() { if (pendingRemoval && !toast.contains(document.activeElement)) countdown(); });
+  toast.addEventListener('focusout', function() { if (pendingRemoval) countdown(); });
+  // Leaving the page sends a waiting removal right away
+  window.addEventListener('pagehide', function() { sendRemoval(true); });
 
   // --- Render ---
   var lastData = null;
@@ -1156,68 +1250,66 @@
 
     // Filter chips
     if (filtered) {
-      html += '<div class="path-filter">' +
+      html += island('filter-path', '<div class="path-filter">' +
         '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/></svg>' +
         '<span>Filtering on</span>' +
         '<span class="path-filter-path" title="' + esc(d.path) + '">' + esc(decode(d.path)) + '</span>' +
         '<button class="path-filter-clear" onclick="clearPathFilter()">Clear filter</button>' +
-      '</div>';
+      '</div>');
     }
     if (d.channel) {
       var channelName = Object.keys(channelSlugs).find(function(k) { return channelSlugs[k] === d.channel; }) || d.channel;
       var cColor = channelColors[channelName] || '#f16272';
-      html += '<div class="path-filter">' +
+      html += island('filter-channel', '<div class="path-filter">' +
         '<span style="width:10px;height:10px;border-radius:50%;background:' + cColor + ';flex-shrink:0"></span>' +
         '<span>Channel</span>' +
         '<span class="path-filter-path">' + esc(channelName) + '</span>' +
         '<button class="path-filter-clear" onclick="filterChannel(\'\')">Clear filter</button>' +
-      '</div>';
+      '</div>');
     }
 
-    html += renderStats(d, totalViews, totalVisitors, pagesPerVisitor, viewsTrend, visitorsTrend, ppvTrend, bounceTrend, sessionTrend) +
-      renderSummary(d.summary) +
-      renderGoals(d.goals) +
-      renderBreakdowns(d.breakdowns) +
-      renderSiteOverview(d.siteOverview) +
-      renderChart(d);
+    // The numbers and the chart first, then goals, pages and sources; saved cards after them
+    html += island('stats', renderStats(d, totalViews, totalVisitors, pagesPerVisitor, viewsTrend, visitorsTrend, ppvTrend, bounceTrend, sessionTrend)) +
+      island('chart', renderChart(d)) +
+      island('sites', renderSiteOverview(d.siteOverview)) +
+      island('goals', renderGoals(d.goals)) +
+      island('summary', renderSummary(d.summary));
 
     if (!filtered) {
-      html += '<div class="grid-2">' +
+      html += island('pages', '<div class="grid-2">' +
         renderTabbedPages(d.pages, d.entryPages, d.exitPages, d.pagesTotal) +
         renderChannels(d.channels) +
-      '</div>' +
-      '<div class="grid-2">' +
-        renderTabbedTraffic(d.referrers, d.utm, d.referrersTotal, d.utmTotal, d.events, d.eventsTotal, d.outbound, d.outboundTotal) +
-        renderTabbedVisitors(d.browsers, d.devices, d.languages, d.countries) +
-      '</div>';
-    } else {
-      html += '<div class="grid-2">' +
-        renderTabbedTraffic(d.referrers, d.utm, d.referrersTotal, d.utmTotal, d.events, d.eventsTotal, d.outbound, d.outboundTotal) +
-        renderTabbedVisitors(d.browsers, d.devices, d.languages, d.countries) +
-      '</div>';
+      '</div>');
     }
+    html += island('traffic', '<div class="grid-2">' +
+      renderTabbedTraffic(d.referrers, d.utm, d.referrersTotal, d.utmTotal, d.events, d.eventsTotal, d.outbound, d.outboundTotal) +
+      renderTabbedVisitors(d.browsers, d.devices, d.languages, d.countries) +
+    '</div>');
+
+    html += renderBreakdowns(d.breakdowns);
 
     if (!filtered) {
-      html += renderBotSection(d) +
-      renderBrokenLinks(d.brokenLinks);
+      html += island('bots', renderBotSection(d)) +
+        island('broken', renderBrokenLinks(d.brokenLinks));
     }
 
-    if (!isShared) html += renderTools(d.site);
-    // The 60 s refresh redraws the same period: keep a chart the viewer scrolled back in
-    var chartKey = [currentSite, currentDays, currentFrom, currentTo, currentPath, currentChannel].join('|');
+    if (!isShared) html += island('tools', renderTools(d.site));
+    // A refresh of the same view patches only the islands that changed; another site, period
+    // or filter redraws everything. Keep a chart the viewer scrolled back in.
+    var viewKey = [currentSite, currentDays, currentFrom, currentTo, currentPath, currentChannel].join('|');
+    var sameView = viewKey === lastViewKey;
+    lastViewKey = viewKey;
     var oldScroll = app.querySelector('#chart-card .chart-scroll');
-    var keepLeft = oldScroll && chartKey === lastChartKey && oldScroll.scrollLeft + oldScroll.clientWidth < oldScroll.scrollWidth - 1 ? oldScroll.scrollLeft : null;
-    lastChartKey = chartKey;
-    app.innerHTML = html;
-    showLatestDays(app);
+    var keepLeft = oldScroll && sameView && oldScroll.scrollLeft + oldScroll.clientWidth < oldScroll.scrollWidth - 1 ? oldScroll.scrollLeft : null;
+    patchIslands(html, sameView).forEach(showLatestDays);
     var newScroll = app.querySelector('#chart-card .chart-scroll');
-    if (keepLeft !== null && newScroll) newScroll.scrollLeft = keepLeft;
+    if (keepLeft !== null && newScroll && newScroll !== oldScroll) newScroll.scrollLeft = keepLeft;
 
     activeTabs.forEach(function(id) {
       var tab = document.querySelector('.card-tab[data-tab="' + id + '"]');
       if (tab && !tab.classList.contains('active')) switchPageTab(tab);
     });
-    if (openEvent) {
+    if (openEvent && !document.contains(openDetail)) {
       [].some.call(document.querySelectorAll('[data-anchor]'), function(el) {
         if (el.getAttribute('data-anchor') !== openEvent.anchor) return false;
         openEventDetail(el, openEvent.name, openEvent.group, openEvent.showAll, openEvent.then, true);
@@ -1241,14 +1333,15 @@
 
   // Saved breakdowns: one card each, top values of an event grouped on a key
   function renderBreakdowns(list) {
-    if (!list || !list.length) return '';
-    var html = '<div class="grid-2">';
+    list = (list || []).filter(function(b) { return !removing('bd:' + b.id); });
+    if (!list.length) return '';
+    var html = '<div class="grid-2" data-island="breakdowns" data-island-list>';
     list.forEach(function(b) {
       var key = b.group === '@version' ? 'version' : b.group;
       var auto = b.event.replace(/_/g, ' ') + ' by ' + key;
       var sub = (b.label !== auto ? [auto] : []).concat(currentSite ? [] : [b.site]).join(' · ');
       var max = Math.max.apply(null, b.rows.map(function(r) { return r.count; }).concat([1]));
-      html += '<div class="card breakdown-card">' +
+      html += '<div class="card breakdown-card" data-island="bd:' + b.id + '">' +
         '<div class="breakdown-head" data-anchor="bd:' + b.id + '">' +
           '<div style="min-width:0"><span class="card-title"' + (isShared ? '' : ' contenteditable="plaintext-only" spellcheck="false" title="Click to rename" data-bd-site="' + esc(b.site) + '" data-bd-event="' + esc(b.event) + '" data-bd-group="' + esc(b.group) + '" onkeydown="if(event.key===\'Enter\'){event.preventDefault();this.blur()}" onblur="renameBreakdown(this)"') + '>' + esc(b.label) + '</span>' +
             (sub ? '<div class="breakdown-sub">' + esc(sub) + '</div>' : '') + '</div>' +
@@ -1301,11 +1394,14 @@
   };
 
   window.removeBreakdown = function(id, site) {
-    fetch(apiUrl('?breakdown_remove'), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ site: site, id: id })
-    }).then(function() { load(currentDays); });
+    removeLater('bd:' + id, 'Card removed', function(leaving) {
+      return fetch(apiUrl('?breakdown_remove'), {
+        method: 'POST',
+        keepalive: leaving,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ site: site, id: id })
+      });
+    });
   };
 
   window.saveBreakdown = function(btn) {
@@ -1422,7 +1518,9 @@
   }
 
   function renderGoals(goals) {
-    if (!goals || !goals.length || isShared) return '';
+    var site = currentSite || (sites.length === 1 ? sites[0] : '');
+    goals = (goals || []).filter(function(g) { return !removing('goal:' + site + '\n' + g.path); });
+    if (!goals.length || isShared) return '';
     var html = '<div class="card"><span class="card-title">Goals</span><div style="margin-top:12px">';
     goals.forEach(function(g) {
       var isEvent = g.type === 'event';
@@ -1568,7 +1666,7 @@
   }
 
   // A long period is wider than the card and scrolls; open it on the latest days
-  var lastChartKey = '';
+  var lastViewKey = '';
   function showLatestDays(root) {
     root.querySelectorAll('.chart-scroll').forEach(function(el) { el.scrollLeft = el.scrollWidth; });
   }
@@ -2933,11 +3031,14 @@
   window.removeGoal = function(path) {
     var site = currentSite || (sites.length === 1 ? sites[0] : '');
     if (!site) return;
-    fetch(apiUrl('?goal_remove'), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ site: site, path: path })
-    }).then(function() { load(currentDays); });
+    removeLater('goal:' + site + '\n' + path, 'Goal removed', function(leaving) {
+      return fetch(apiUrl('?goal_remove'), {
+        method: 'POST',
+        keepalive: leaving,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ site: site, path: path })
+      });
+    });
   };
 
   window.loadOutboundDetail = function(url, el) {
