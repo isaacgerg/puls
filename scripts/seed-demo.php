@@ -153,6 +153,30 @@ $stmt = $db->prepare('INSERT INTO pageviews (site, path, referrer, browser, devi
 // Generate 30 days of data, ~200-500 pageviews per day
 // with a trend: growing traffic over the period
 $totalInserted = 0;
+$now = time();
+// A visit is one to five pages, 20 s to 3 min apart, so session lengths look real.
+// Visits start between 06 and 23, most of them in office hours.
+$sessionPages = [[1, 45], [2, 25], [3, 15], [4, 10], [5, 5]];
+$startHours = [[6, 2], [7, 4], [8, 7], [9, 10], [10, 11], [11, 11], [12, 9], [13, 10], [14, 11], [15, 10], [16, 8], [17, 6], [18, 5], [19, 5], [20, 5], [21, 4], [22, 3]];
+$addVisit = function (string $visitor, int $start) use ($stmt, $site, $paths, $referrers, $browsers, $devices, $countries, $languages, $campaigns, $sessionPages, $now, &$totalInserted) {
+    // Source, browser and place belong to the visitor, not to each page
+    $referrer = pickWeighted($referrers);
+    $browser = pickWeighted($browsers);
+    $device = pickWeighted($devices);
+    $country = pickWeighted($countries);
+    $lang = pickWeighted($languages);
+    $campaign = $campaigns[array_rand($campaigns)];
+    $t = $start;
+    for ($p = pickWeighted($sessionPages); $p > 0 && $t <= $now; $p--) {
+        $stmt->execute([
+            $site, pickWeighted($paths), $referrer, $browser, $device, $visitor,
+            $campaign[0] ?? null, $campaign[1] ?? null, $campaign[2] ?? null,
+            $lang, $country, date('Y-m-d H:i:s', $t),
+        ]);
+        $totalInserted++;
+        $t += mt_rand(20, 180);
+    }
+};
 for ($daysAgo = 29; $daysAgo >= 0; $daysAgo--) {
     // Traffic grows over time + weekly pattern (weekends lower)
     $dayOfWeek = (int) date('w', strtotime("-{$daysAgo} days"));
@@ -160,35 +184,16 @@ for ($daysAgo = 29; $daysAgo >= 0; $daysAgo--) {
     $growthMult = 1 + ((30 - $daysAgo) / 30) * 0.4; // +40% over period
     $pageviewsToday = (int) (250 * $weekendMult * $growthMult * (0.8 + (mt_rand(0, 40) / 100)));
 
-    // Visitors = roughly 70% of pageviews (some view multiple pages)
-    $visitorsToday = (int) ($pageviewsToday * 0.7);
-    $visitors = [];
+    // About two pages per visit, never after now
+    $visitorsToday = (int) ($pageviewsToday / 2);
     for ($v = 0; $v < $visitorsToday; $v++) {
-        $visitors[] = substr(hash('sha256', "visitor-$daysAgo-$v"), 0, 16);
+        $start = strtotime("-{$daysAgo} days " . sprintf('%02d:%02d:%02d', pickWeighted($startHours), mt_rand(0, 59), mt_rand(0, 59)));
+        $addVisit(substr(hash('sha256', "visitor-$daysAgo-$v"), 0, 16), $start);
     }
-
-    for ($i = 0; $i < $pageviewsToday; $i++) {
-        $visitor = $visitors[mt_rand(0, count($visitors) - 1)];
-        $hour = mt_rand(6, 22); // peak hours
-        $minute = mt_rand(0, 59);
-        $second = mt_rand(0, 59);
-        $date = date('Y-m-d H:i:s', strtotime("-{$daysAgo} days " . sprintf('%02d:%02d:%02d', $hour, $minute, $second)));
-
-        $path = pickWeighted($paths);
-        $referrer = pickWeighted($referrers);
-        $browser = pickWeighted($browsers);
-        $device = pickWeighted($devices);
-        $country = pickWeighted($countries);
-        $lang = pickWeighted($languages);
-        $campaign = $campaigns[array_rand($campaigns)];
-
-        $stmt->execute([
-            $site, $path, $referrer, $browser, $device, $visitor,
-            $campaign[0] ?? null, $campaign[1] ?? null, $campaign[2] ?? null,
-            $lang, $country, $date,
-        ]);
-        $totalInserted++;
-    }
+}
+// A few visitors in the last minutes, for the online-now badge
+for ($v = 0; $v < 4; $v++) {
+    $addVisit(substr(hash('sha256', "visitor-live-$v"), 0, 16), $now - mt_rand(30, 240));
 }
 
 // Add some bot visits
@@ -205,9 +210,8 @@ $bots = [
 $botStmt = $db->prepare('INSERT INTO bot_visits (site, path, bot_name, bot_category, user_agent, created_at) VALUES (?, ?, ?, ?, ?, ?)');
 foreach ($bots as [$name, $cat, $count]) {
     for ($i = 0; $i < $count; $i++) {
-        $daysAgo = mt_rand(0, 29);
-        $hour = mt_rand(0, 23);
-        $date = date('Y-m-d H:i:s', strtotime("-{$daysAgo} days {$hour}:00:00"));
+        // Any moment in the last 30 days, never after now
+        $date = date('Y-m-d H:i:s', $now - mt_rand(0, 30 * 86400));
         $botStmt->execute([$site, pickWeighted($paths), $name, $cat, "Mozilla/5.0 $name", $date]);
     }
 }
@@ -228,7 +232,11 @@ foreach ($brokenLinks as [$path, $status, $hits]) {
 // Add some events
 $eventTypes = [
     ['cta_click', '{"location":"hero"}', 45],
+    ['cta_click', '{"location":"pricing"}', 26],
+    ['cta_click', '{"location":"footer"}', 12],
+    ['cta_click', '{"location":"blog"}', 7],
     ['signup', '{"plan":"pro"}', 18],
+    ['signup', '{"plan":"starter"}', 11],
     ['download', '{"file":"guide.pdf"}', 32],
     ['phone_click', '{"number":"+46701234567"}', 12],
     ['outbound_click', '{"url":"https://github.com/webready-se/puls"}', 67],
