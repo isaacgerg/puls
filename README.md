@@ -1,340 +1,133 @@
-# Puls
+<div align="center">
 
-[![Tests](https://github.com/webready-se/puls/actions/workflows/tests.yml/badge.svg)](https://github.com/webready-se/puls/actions/workflows/tests.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+<img src="public/icon-192.png" width="72" height="72" alt="">
+
+# Puls
 
 **One file. No cookies. Full picture.**
 
-See your traffic. Respect their privacy.
+Self-hosted web analytics in a single PHP file and SQLite.<br>
+Upload it to any PHP host and see your traffic in minutes, without a cookie banner.
 
-Puls is a cookieless, lightweight analytics tool built with a single PHP file and SQLite. No frameworks, no dependencies, no build step. Drop it on any PHP host and go.
+[![Tests](https://github.com/webready-se/puls/actions/workflows/tests.yml/badge.svg)](https://github.com/webready-se/puls/actions/workflows/tests.yml)
+[![Latest release](https://img.shields.io/github/v/release/webready-se/puls)](https://github.com/webready-se/puls/releases/latest)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-![Puls Dashboard](docs/screenshots/dashboard.png)
+</div>
 
-## Why Puls?
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/dashboard.png">
+  <img alt="The Puls dashboard: pageviews, visitors, bounce rate and session length with trends, a chart with a release marker and a note, a summary row, and goals with targets" src="docs/screenshots/dashboard-light.png">
+</picture>
 
-Most analytics tools are either privacy-invasive (Google Analytics) or require Docker, Node.js, or managed hosting (Plausible, Umami). Fathom is great but costs $15+/month.
+## Get started in two minutes
 
-Puls is **one PHP file**. Upload it, run `php puls user:add admin`, and you're live. No containers, no queues, no external databases. SQLite handles everything. Perfect for freelancers, agencies, and anyone who wants analytics without infrastructure.
+On any host with PHP 8.3 or newer, download the [latest release](https://github.com/webready-se/puls/releases/latest), then:
 
-## Privacy
+```bash
+unzip puls-*.zip && cd puls-*
+php puls user:add admin            # create your login
+php -S localhost:8080 -t public    # try it, or point your web server at public/
+```
 
-Puls is designed to be GDPR-friendly without consent banners:
+Add one line to every site you want to track:
 
-- **No cookies** — ever
-- **No IP storage** - the visitor id is a hash of IP and user agent with a random salt that is deleted after the day, so it can never be computed again, not even by whoever runs the server
-- **No fingerprinting** — no canvas, font, or WebGL tricks
-- **No PII** — no names, emails, or identifiers stored
-- **Data collected:** page path, referrer domain, browser, device type, UTM params, language, country (from Accept-Language header)
-- **Not collected:** IP addresses, cookies, personal data, fingerprints
-- **Retention:** pageviews are kept until you delete them, custom events for 400 days (`EVENTS_RETENTION_DAYS`), bot visits for 90 days and broken links for 30 days after the last hit
+```html
+<script src="https://stats.example.com/?js" data-site="example.com" defer></script>
+```
 
-## Features
+That's it. Docker, Nginx, Laravel Forge and shared hosting without SSH are covered in [Install and run](docs/install.md).
 
-**Core**
-- **Cookieless** — GDPR-friendly by default, no consent banners needed
-- **Lightweight** — ~2KB tracking script (gzipped), single PHP file backend
-- **Zero dependencies** — PHP 8.3+ and SQLite, nothing else
+## Why Puls
 
-**Dashboard**
-- **Multi-site hub** — track all your sites from one dashboard with site overview
-- **Traffic channels** — Paid, Campaign, Organic, Social, Referral, Direct with click filtering
-- **Country stats** — visitor countries from Accept-Language with flag emojis
-- **Custom date range** — 24h, 7d, 30d, 90d, or pick any from/to dates
-- **Goals/conversions** — set target pages or events and track conversion rate
-- **Trend indicators** — comparison with previous period (▲12%)
-- **Bounce rate & session length** — median session duration, inverted bounce trend
-- **Entry/exit pages** — see where visitors land and leave, with bounce rate per entry page
-- **Chart notes** — mark a day or a date range (a film, a mention, a fair) so spikes stay explainable later
-- **Summary insights** — best day, peak hour, top page, top source
-- **Realtime** — "N online now" badge (last 5 min)
-- **Dark mode** — System/Dark/Light theme
-- **CMD+K** — command palette with page search and filtering
-- **PWA** — installable, pull-to-refresh
+- **One file, no infrastructure.** A PHP file, a dashboard page and SQLite. No Node, no Docker, no database server, no build step. It runs on ordinary PHP web hosting.
+- **Private by design.** No cookies and no stored IP addresses. A visitor is a hash with a random salt that is deleted after the day, so it can never be computed again, not even by whoever runs the server. Puls is designed to work without a consent banner.
+- **Your data, on your server.** One SQLite file you can copy, back up or delete. MIT licensed, no limits, no account.
+- **Light on your pages.** The tracking script is under 2 KB gzipped and sends with `sendBeacon`, so it never holds up the page.
 
-**Tracking**
-- **Custom events** — `puls.track('signup', { plan: 'pro' })` JS API, with per-event trend, rate per 100 visitors and group-by on any data key
-- **Auto events** — zero-config tracking of phone clicks, email clicks, downloads, form submissions
-- **Outbound links** — auto-track clicks on external links
-- **UTM campaigns** — full UTM support with guided link wizard
-- **Google Ads** — auto-detect `gad_source`/`gad_campaignid` (JS + server-side)
-- **Exclude your own visits** - by IP address or range per site, or per browser with `#puls-ignore`
+## What you get
 
-**Bot & link monitoring**
-- **Bot detection** — 25+ bots: AI crawlers, search engines, social, SEO, monitors
-- **Server-side bot tracking** — Nginx mirror for zero-latency capture
-- **Broken link tracking** — 404/301 via Nginx post_action with referrer info
+### See who reads your site besides people
 
-**Sharing & access**
-- **Multi-user** — bcrypt auth with per-user site access control
-- **Shareable dashboards** — token-based read-only links
-- **Data export** — CSV/JSON download from the dashboard
-- **Interactive CLI** — all management commands with pickers and prompts
+Bots are counted apart from your visitors: AI crawlers such as GPTBot, ClaudeBot and PerplexityBot, search engines, SEO tools, social previews and uptime monitors, with the pages they read. Behind Nginx, Puls also logs 404s and redirects as **pages to fix**, with the pages that link to them.
+
+![Bots and crawlers, grouped as monitor, search engine, AI and social, with the most crawled pages, the latest bot activity and pages to fix](docs/screenshots/bots.png)
+
+### Events you can read, not just count
+
+`puls.track('signup', { plan: 'pro' })` is all it takes. Each event gets a trend, a rate per 100 visitors, a breakdown by any key in its data, a two-step funnel and a CSV export. Save a breakdown and it becomes a card on the dashboard, with its total, its change and a sparkline.
+
+![Opening an event: a daily trend with release and note markers, then the values grouped by location](docs/screenshots/drill-down.gif)
+
+![Two saved cards: CTA clicks by placement and sign-ups by plan, each with a count, a change against the previous period and a sparkline](docs/screenshots/cards.png)
+
+### Goals with targets
+
+A goal is a page or an event. Its tile shows the visitors who converted, their share of all visitors, the change against the previous period and, if you set one, a target such as 10 per week.
+
+### And the rest
+
+- **Traffic:** channels (paid, campaign, organic, social, referral, direct), UTM campaigns with a link builder, Google Ads detection, entry and exit pages, bounce rate and session length
+- **Over time:** compare with the previous period, custom date ranges, chart notes for campaigns and mentions, release markers from your app version, a live visitor count
+- **Teams and clients:** one dashboard for many sites, users limited to their own sites, read-only share links, a [JSON and CSV API](docs/api.md)
+- **Tracking without code:** phone and email clicks, downloads, form submissions, outbound links
+- **Keeping personal data out:** drop query strings or turn ids and tokens in URLs into `:id` and `:token` before anything leaves the browser
+- **Everyday use:** dark mode, a ⌘K command palette, installable as an app, white-label branding, an interactive CLI
 
 <details>
 <summary>More screenshots</summary>
 
-**Compare with previous period**
+**Compare with the previous period**
 
-![Comparison mode](docs/screenshots/dashboard-compare.png)
+![The pageview chart with the previous period drawn behind each bar](docs/screenshots/dashboard-compare.png)
 
-**Events & country stats**
+**Events and countries**
 
-![Events and countries](docs/screenshots/events.png)
-
-**Bot detection & broken link tracking**
-
-![Bots & crawlers](docs/screenshots/bots.png)
+![The events list next to visitor countries](docs/screenshots/events.png)
 
 **Light mode**
 
-![Light mode](docs/screenshots/dashboard-light.png)
+![The dashboard in light mode](docs/screenshots/dashboard-light.png)
 
 </details>
 
-## Quick Start
+## How Puls compares
 
-### Docker
+| | What you run | Database | Cookies | Hosted version | License |
+|---|---|---|---|---|---|
+| **Puls** | One PHP file on any PHP 8.3 host, or Docker | SQLite, built in | None | No | MIT |
+| [GoatCounter](https://www.goatcounter.com) | One Go binary | SQLite or PostgreSQL | None | Free, donation-supported | EUPL (modified) |
+| [Umami](https://umami.is) | Node.js app, or Docker | PostgreSQL | None | Free tier and paid plans | MIT |
+| [Plausible CE](https://github.com/plausible/community-edition) | Docker Compose, 2 GB RAM recommended | PostgreSQL and ClickHouse | None | Paid | AGPL-3.0 |
+| [Matomo](https://matomo.org) | PHP app | MySQL or MariaDB | Yes by default, can be turned off | Paid | GPL-3.0 |
+| Google Analytics | Nothing, Google hosts it | Google's servers | Yes | Free | Proprietary |
 
-```bash
-docker run -p 8080:8080 -e ADMIN_PASSWORD=changeme -v puls-data:/app/data puls
-```
+<sub>From each project's own documentation, October 2026. Corrections are welcome as issues or pull requests.</sub>
 
-Or with Docker Compose:
+**When to pick something else.** Puls is made for small and medium sites that you run yourself.
 
-```bash
-curl -O https://raw.githubusercontent.com/webready-se/puls/main/docker-compose.yml
-docker compose up
-```
+- You would rather not run anything: Plausible and Umami have hosted plans, and GoatCounter has a free hosted service.
+- Millions of pageviews a month on one site: a database built for analytics, like Plausible's ClickHouse, stays fast at that size. Puls's dashboard slows down there; making it faster is [on the roadmap](ROADMAP.md).
+- E-commerce reports, heatmaps or session recordings: Matomo does that, Puls doesn't.
 
-Open `http://localhost:8080` and log in with `admin` / your password.
+## Privacy
 
-### One-Click Deploy
+- **No cookies**, ever
+- **No IP addresses stored:** the visitor id is a hash of IP and user agent with a random salt that is deleted after the day
+- **No fingerprinting:** no canvas, font or WebGL tricks
+- **Collected:** page path, referrer domain, browser, device type, UTM parameters, language and country (from the `Accept-Language` header)
+- **Kept:** pageviews until you delete them, custom events for 400 days (`EVENTS_RETENTION_DAYS`), bot visits for 90 days and broken links for 30 days after the last hit
 
-[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/webready-se/puls)
+You decide what your sites send. [Keeping personal data out of URLs](docs/integrations.md#keeping-personal-data-out-of-urls) shows how to drop search terms, ids and personal links before they reach Puls.
 
-Also includes configs for [Railway](https://railway.app) (`railway.toml`) and [Fly.io](https://fly.io) (`fly.toml`) — just clone and deploy.
+## Documentation
 
-### Download
-
-Grab the [latest release](https://github.com/webready-se/puls/releases/latest) and extract:
-
-```bash
-unzip puls-*.zip
-cd puls-*
-php puls user:add admin
-php -S localhost:8080 -t public
-```
-
-### Clone (for development)
-
-```bash
-git clone git@github.com:webready-se/puls.git
-cd puls
-php puls user:add admin
-composer install        # dev dependencies + pre-push test hook
-php -S localhost:8080 -t public
-```
-
-## Add Tracking
-
-```html
-<script src="https://your-puls-domain/?js" data-site="my-site" data-outbound defer></script>
-```
-
-This tracks pageviews and outbound link clicks automatically. Works with Next.js, Astro, Laravel, Statamic, React, static HTML, and anything else that serves HTML.
-
-| Attribute | Required | Description |
-|-----------|----------|-------------|
-| `data-site` | Yes | Site name used to separate data in multi-site setups |
-| `data-outbound` | No | Auto-track clicks on external links |
-| `data-auto-events` | No | Auto-track phone clicks, email clicks, downloads, form submissions |
-| `data-debug` | No | Log every pageview and event to the browser console |
-| `data-version` | No | App version sent with every pageview and event, shown as release markers in charts |
-| `data-query` | No | Query strings to send: `none` drops them, `page,tab` keeps only the listed parameters. Without it the full query string is sent (tracking parameters like `utm_*` are always stripped). Use it when URLs can carry personal data, e.g. search terms |
-| `data-collapse-ids` | No | Send numeric path segments as `:id` (`/lead/1234` becomes `/lead/:id`), so apps with record ids get one row per page type instead of one per record |
-| `data-collapse-tokens` | No | Send token segments as `:token` (cuids, UUIDs and other ids of 16+ letters and digits), for apps with generated ids in their URLs. Works in single-page apps |
-| `data-path` | No | Path to send instead of the page URL, e.g. `/:token` on pages whose URL holds a personal link. Applies to pageviews and events. Set it per page; in a single-page app it stays the same across views |
-| `defer` | Recommended | Load script without blocking page render |
-
-### Custom Events
-
-```javascript
-puls.track('signup', { plan: 'pro' });
-puls.track('download', { file: 'brochure.pdf' });
-```
-
-Full documentation in [docs/integrations.md](docs/integrations.md):
-
-- Framework examples (Next.js, Astro, Laravel, Statamic, React)
-- Custom events API, naming conventions, queue stub for early calls, TypeScript types
-- Auto event tracking
-- Outbound link tracking
-- Bot tracking pixel (`<noscript>`)
-- Server-side bot tracking (Nginx mirror)
-- Reverse proxy setup and rate limiting
-
-Keeping personal data out of tracked URLs (`data-query`, `data-collapse-ids`, `data-collapse-tokens`, `data-path`): [docs/integrations.md](docs/integrations.md#keeping-personal-data-out-of-urls).
-
-Reading the data from another application: [docs/api.md](docs/api.md) (JSON and CSV, read-only, with a share token).
-
-## CLI
-
-All management goes through `php puls`:
-
-```bash
-php puls user:add <name>                 # Add user with full access
-php puls user:add <name> --sites=a,b     # Add user restricted to specific sites
-php puls user:edit <name>                # Edit user (sites, password)
-php puls user:remove <name>              # Remove a user
-php puls user:list                       # List all users
-php puls sites:list                      # List all tracked sites
-php puls sites:rename <old> <new>        # Rename a tracked site
-php puls share:create <site>             # Create a shareable dashboard link
-php puls share:create <site> --label="Client Q1" --expires=2026-06-30
-php puls share:list                      # List all share tokens
-php puls share:revoke <token>            # Revoke a share token
-php puls exclude:add <site> <ip>         # Stop counting an IP or range (e.g. 81.2.3.0/24, site * = all)
-php puls exclude:list                    # List excluded IPs
-php puls exclude:remove <site> <ip>      # Count an excluded IP again
-php puls sites:remove <name>             # Delete all data for a site
-php puls sites:clean-paths <site> --query --ids  # Clean stored paths (--keep=a,b, --tokens, --dry-run)
-php puls nginx:config                    # Generate Nginx config for a site
-```
-
-All commands work without arguments — interactive pickers and prompts guide you through.
-
-## Configuration
-
-Configuration is optional and lives in `.env`. Copy `.env.example` to `.env` and change what you need:
-
-```env
-APP_URL=https://puls.example.com  # Base URL (used in CLI for share links)
-ALLOWED_ORIGINS=            # Allowed domains (comma-separated, includes subdomains)
-DB_PATH=data/puls.sqlite    # Database path (relative to project root)
-USERS_FILE=users.json       # User credentials path (relative to project root)
-SESSION_LIFETIME=2592000    # 30 days
-MAX_LOGIN_ATTEMPTS=5
-LOCKOUT_MINUTES=15
-IGNORED_BOTS=               # Bot UA patterns to exclude (comma-separated)
-TRUSTED_PROXIES=            # Proxies in front of Puls (IPs/CIDR), see docs/integrations.md
-EVENTS_RETENTION_DAYS=400   # Days to keep custom events, 0 = forever
-```
-
-### Allowed Origins
-
-To restrict which sites can send tracking data, add their domains to `ALLOWED_ORIGINS` in `.env`. Subdomains are included automatically:
-
-```env
-ALLOWED_ORIGINS=example.com,another-site.com
-```
-
-This allows tracking from `example.com`, `www.example.com`, `app.example.com`, etc. Leave empty to allow all origins.
-
-### White-label
-
-Customize branding via `.env`:
-
-```env
-APP_NAME=MyAnalytics
-APP_TAGLINE=Your custom tagline
-APP_ACCENT=#e11d48
-```
-
-This changes the login page, dashboard header, PWA manifest, and favicon. The footer always shows "Powered by Puls".
-
-## Deployment
-
-### Requirements
-
-- PHP 8.3+ (tested on 8.3, 8.4, 8.5)
-- `pdo_sqlite` extension (included in most PHP installations)
-- Write access to `data/` directory
-
-These apply to file-drop installs. The Docker image bundles its own PHP 8.4, so
-the host needs nothing but Docker.
-
-### Nginx
-
-```nginx
-server {
-    listen 443 ssl http2;
-    server_name puls.example.com;
-    root /var/www/puls/public;
-    index index.php;
-
-    location / {
-        try_files $uri /index.php$is_args$args;
-    }
-
-    location ~ \.php$ {
-        fastcgi_pass unix:/var/run/php/php8.3-fpm.sock;
-        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
-        include fastcgi_params;
-    }
-}
-```
-
-### Apache
-
-Add a `.htaccess` file in the `public/` directory:
-
-```apache
-RewriteEngine On
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteRule ^ index.php [L,QSA]
-```
-
-Make sure `mod_rewrite` is enabled (`a2enmod rewrite`) and that your virtual host allows overrides:
-
-```apache
-<Directory /var/www/puls/public>
-    AllowOverride All
-</Directory>
-```
-
-> **Note:** Server-side bot tracking (Nginx mirror) is not available on Apache. Use the `<noscript>` tracking pixel instead — see [docs/integrations.md](docs/integrations.md).
-
-### Laravel Forge (zero-downtime deploys)
-
-Puls auto-detects Forge's release directory structure and stores
-`data/` and `users.json` in the site root automatically. No symlinks needed.
-
-**First-time setup (SSH):**
-
-```bash
-cd /home/forge/puls.example.com/current
-php puls user:add admin
-```
-
-**Deploy script (default is fine):**
-
-```bash
-$CREATE_RELEASE()
-
-cd $FORGE_RELEASE_DIRECTORY
-
-$ACTIVATE_RELEASE()
-```
-
-### Shared Hosting
-
-**With SSH access:**
-
-1. Upload all files via FTP/SSH
-2. Point the domain to the `public/` directory
-3. Run `php puls user:add admin`
-4. Done
-
-**Without SSH access:**
-
-1. Run `php puls user:add admin` locally
-2. Upload all files including `users.json` (and `.env` if you created one) via FTP
-3. Point the domain to the `public/` directory
-4. Done
-
-> **Important:** Keep `.env` and `users.json` in the project root, never inside `public/`. They contain your settings and password hashes.
+- [Install and run](docs/install.md): release download, shared hosting, Nginx, Apache, Laravel Forge, Docker, upgrading
+- [Tracking and integrations](docs/integrations.md): script attributes, custom events, frameworks (Next.js, Astro, Laravel, Statamic, React), auto events, server-side bot tracking, reverse proxies
+- [Configuration and CLI](docs/configuration.md): `.env` settings, users and access, share links, excluding your own visits, white-label, every CLI command
+- [Read API](docs/api.md): JSON and CSV with a share token
+- [Changelog](CHANGELOG.md) and [roadmap](ROADMAP.md)
 
 ## License
 
-MIT
+MIT. Made by [Webready](https://webready.se) in Sweden.
