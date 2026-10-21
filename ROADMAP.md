@@ -240,6 +240,7 @@ From a site with 4 goals and 9 saved cards: the page got long, the chart ended u
 - [x] **Shorter cache for the tracking script** — `?js` was cached 24 h, so new attributes took up to a day to reach every visitor. Now 1 h plus an ETag, so the hourly check is a bodyless 304
 - [x] **Visitor IP behind a proxy** — Puls behind a reverse proxy or Cloudflare saw every visitor as the proxy (visitor hashes differed by user agent only). `TRUSTED_PROXIES` lets those proxies set the visitor IP via `X-Forwarded-For` / `X-Real-IP`; Forge (Nginx + PHP-FPM) was not affected
 - [ ] **Dashboard performance at scale** — 30-day dashboard ~17 s on a 2M-pageview benchmark; real copies of customer data in `data/` can serve as benchmark data
+- [x] **Pull-to-refresh keeps the view** - the installed app reloaded the last N days instead of a custom date range and left out the share token; it now goes through the same request as the dashboard
 
 ---
 

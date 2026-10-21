@@ -28,6 +28,8 @@ Single PHP entry point (`public/index.php`) handles all routing:
 | `GET /?api&sites` | Yes | List tracked sites |
 | `GET /` | Yes | Dashboard |
 | `POST /?login` | No | Login form submission |
+| `POST /?goal_add` | Yes | Add a conversion goal (page path or event name) |
+| `POST /?goal_remove` | Yes | Remove a conversion goal |
 | `POST /?breakdown_add` | Yes | Save or rename an event breakdown card |
 | `POST /?breakdown_remove` | Yes | Remove a breakdown card |
 | `POST /?annotation_add` | Yes | Add a chart note on a date or date range |
