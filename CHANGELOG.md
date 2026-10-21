@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [1.26.0] - 2026-10-21
 
 ### Added
 
@@ -14,11 +14,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
-- Goals are tiles like the numbers at the top: the visitors who converted, their share of all visitors, the change against the previous period and a daily sparkline. A goal without hits in the period is dimmed. The API returns `previousConversions`, `series`, `target` and `targetPeriod` for each goal.
 - The dashboard shows the chart right after the numbers, then goals, the summary, pages and sources. Saved cards come after pages and sources, so many cards no longer push the chart down the page.
 - The 60-second refresh replaces only the parts of the dashboard whose content changed. Everything else stays as it is: an open drill-down, the chosen tab, the chart's scroll position and whatever is under the pointer. Before, it redrew the whole page, so content jumped and a click could land on another card. The refresh also waits while the tab is hidden or you used the page in the last 10 seconds, and a refresh that fails keeps the current view instead of showing an error.
 - Removing a saved card or a goal shows an Undo button for six seconds before the removal is saved. Leaving the page in that time saves it right away.
 - Saved cards show the number of events in the period, the change against the previous period and a daily sparkline under the title. They list the top five values, and Show all expands the card in place (up to 50 values; Details has the rest). Cards side by side are the same height. The API returns `count`, `previousCount` and `series` for each saved card, and up to 50 `rows` instead of 10.
+- Goals are tiles like the numbers at the top: the visitors who converted, their share of all visitors, the change against the previous period and a daily sparkline. A goal without hits in the period is dimmed. The API returns `previousConversions`, `series`, `target` and `targetPeriod` for each goal.
 
 ### Removed
 
@@ -29,7 +29,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Requests that arrived while an upgrade migrated the database failed with "database is locked": `?health` answered 503 and pageviews were dropped. They now wait for the migration and are handled normally. Seen as failed Forge health checks right after a deploy.
 - Pull-to-refresh in the installed app (PWA) reloaded the last N days even when a custom date range was chosen, and left out the share token on a shared dashboard. It now reloads the same view as the dashboard.
 - A user with access to two or more sites, but not all, could not load the all-sites view: the site overview query failed. Users with access to every site, or to one site, were not affected.
-- In the all-sites view, such a user also saw the names and paths of goals on sites they have no access to (with zero conversions). Goals are now limited to the user's sites.
+
+### Security
+
+- In the all-sites view, a user with access to two or more sites, but not all, saw the names and paths of goals on sites they have no access to (with zero conversions). Goals are now limited to the user's sites.
 
 ## [1.25.0] - 2026-10-16
 
@@ -492,6 +495,7 @@ First public release.
 - GitHub Actions on PHP 8.3 / 8.4 / 8.5
 - Pre-push hook — tests run before every push
 
+[1.26.0]: https://github.com/webready-se/puls/releases/tag/v1.26.0
 [1.25.0]: https://github.com/webready-se/puls/releases/tag/v1.25.0
 [1.24.0]: https://github.com/webready-se/puls/releases/tag/v1.24.0
 [1.23.0]: https://github.com/webready-se/puls/releases/tag/v1.23.0
