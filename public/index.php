@@ -186,7 +186,7 @@ if (isset($_GET['goal_remove']) && $_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 // Saved breakdowns: an event grouped on one key, shown as its own dashboard card
-if ((isset($_GET['breakdown_add']) || isset($_GET['breakdown_remove'])) && $_SERVER['REQUEST_METHOD'] === 'POST') {
+if ((isset($_GET['breakdown_add']) || isset($_GET['breakdown_remove']) || isset($_GET['breakdown_order'])) && $_SERVER['REQUEST_METHOD'] === 'POST') {
     require_auth();
     $input = json_decode(file_get_contents('php://input'), true) ?: [];
     $bdSite = substr((string) ($input['site'] ?? ''), 0, 200);
@@ -198,9 +198,18 @@ if ((isset($_GET['breakdown_add']) || isset($_GET['breakdown_remove'])) && $_SER
         $group = str_replace(['"', '\\'], '', substr(trim((string) ($input['group'] ?? '')), 0, 50));
         if ($event === '' || $group === '') respond('', 400);
         $label = substr(trim((string) ($input['label'] ?? '')), 0, 100);
-        // Saving the same event + key again only renames the card
-        $db->prepare('INSERT INTO breakdowns (site, label, event_name, group_key, created_at) VALUES (?, ?, ?, ?, ?) ON CONFLICT (site, event_name, group_key) DO UPDATE SET label = excluded.label')
-            ->execute([$bdSite, $label, $event, $group, date('Y-m-d H:i:s')]);
+        // A new card goes last on its site. Saving the same event + key again only renames the card
+        $db->prepare('INSERT INTO breakdowns (site, label, event_name, group_key, created_at, position) VALUES (?, ?, ?, ?, ?, (SELECT COALESCE(MAX(position), -1) + 1 FROM breakdowns WHERE site = ?)) ON CONFLICT (site, event_name, group_key) DO UPDATE SET label = excluded.label')
+            ->execute([$bdSite, $label, $event, $group, date('Y-m-d H:i:s'), $bdSite]);
+    } elseif (isset($_GET['breakdown_order'])) {
+        // ids in the order to show them; an id from another site is ignored
+        $ids = array_slice(array_values((array) ($input['ids'] ?? [])), 0, 500);
+        $move = $db->prepare('UPDATE breakdowns SET position = ? WHERE site = ? AND id = ?');
+        $db->beginTransaction();
+        foreach ($ids as $position => $id) {
+            $move->execute([$position, $bdSite, (int) $id]);
+        }
+        $db->commit();
     } else {
         $db->prepare('DELETE FROM breakdowns WHERE site = ? AND id = ?')->execute([$bdSite, (int) ($input['id'] ?? 0)]);
     }
@@ -1536,7 +1545,8 @@ function get_api_data(array $config, array $user): string
     // Saved breakdowns, each computed on its own site
     $breakdowns = [];
     if (!$path && !$channel) {
-        $stmt = $db->prepare("SELECT id, site, label, event_name, group_key FROM breakdowns WHERE 1 {$siteFilter} ORDER BY created_at, id");
+        // In the order set per site; cards never moved keep the order they were saved in
+        $stmt = $db->prepare("SELECT id, site, label, event_name, group_key FROM breakdowns WHERE 1 {$siteFilter} ORDER BY site, position, created_at, id");
         $stmt->execute($siteParams);
         foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $bd) {
             [$rows, $new] = event_group($db, $bd['event_name'], $bd['group_key'], $dateFilter, $dateParams, 'AND site = ?', [$bd['site']], $prevSince, $since, 200);
@@ -2006,7 +2016,7 @@ function meta_ad_params(): array
 
 function run_migrations(PDO $db): void
 {
-    $currentVersion = 22; // Bump this when adding new migrations
+    $currentVersion = 23; // Bump this when adding new migrations
 
     // Use SQLite's built-in PRAGMA user_version (per-database, no external file)
     $version = (int) $db->query('PRAGMA user_version')->fetchColumn();
@@ -2436,6 +2446,15 @@ function migrate_schema(PDO $db, int $version, int $currentVersion): void
             $db->exec("UPDATE {$table} SET visitor_hash = (SELECT new FROM hash_map WHERE old = {$table}.visitor_hash)");
         }
         $db->exec('DROP TABLE hash_map');
+    }
+
+    // v23: saved cards can be put in any order per site. Existing cards start at 0
+    // and keep their order, which ties on position fall back to (created_at, id).
+    if ($version < 23) {
+        $bdCols = array_column($db->query('PRAGMA table_info(breakdowns)')->fetchAll(PDO::FETCH_ASSOC), 'name');
+        if (!in_array('position', $bdCols)) {
+            $db->exec('ALTER TABLE breakdowns ADD COLUMN position INTEGER NOT NULL DEFAULT 0');
+        }
     }
 
     $db->exec('PRAGMA user_version = ' . $currentVersion);

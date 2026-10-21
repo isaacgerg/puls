@@ -35,6 +35,7 @@ test('requests arriving during a migration wait for it instead of failing', func
 
     expect($results)->each->toBe('ok');
     $check = new PDO('sqlite:' . $path);
-    expect((int) $check->query('PRAGMA user_version')->fetchColumn())->toBe(22)
+    preg_match('/\$currentVersion = (\d+);/', file_get_contents(__DIR__ . '/../../public/index.php'), $m);
+    expect((int) $check->query('PRAGMA user_version')->fetchColumn())->toBe((int) $m[1])
         ->and((int) $check->query('SELECT COUNT(DISTINCT visitor_hash) FROM pageviews')->fetchColumn())->toBe(20000);
 });

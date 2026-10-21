@@ -30,6 +30,7 @@ Single PHP entry point (`public/index.php`) handles all routing:
 | `POST /?login` | No | Login form submission |
 | `POST /?breakdown_add` | Yes | Save or rename an event breakdown card |
 | `POST /?breakdown_remove` | Yes | Remove a breakdown card |
+| `POST /?breakdown_order` | Yes | Save the order of a site's breakdown cards (`ids` in display order) |
 | `POST /?annotation_add` | Yes | Add a chart note on a date or date range |
 | `POST /?annotation_update` | Yes | Change a chart note's text |
 | `POST /?annotation_remove` | Yes | Remove a chart note |
@@ -50,7 +51,7 @@ users.json              — User credentials (bcrypt hashed, auto-created by CLI
 data/puls.sqlite        — SQLite database (auto-created, gitignored)
 composer.json           — Platform requirements (PHP 8.3+, pdo_sqlite) + dev dependencies (Pest)
 phpunit.xml             — Test configuration (Pest)
-tests/                  — Pest test suite (240 tests, unit + feature)
+tests/                  — Pest test suite (251 tests, unit + feature)
 docs/integrations.md    - Tracking setup: script attributes, events, keeping personal data out of URLs, excluding own visits, reverse proxies
 docs/api.md             - Read API reference (JSON/CSV, share tokens)
 scripts/hooks/pre-push  — Git hook: runs Pest before allowing push

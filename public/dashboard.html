@@ -261,6 +261,12 @@
   .breakdown-toggle { display: block; width: 100%; padding: 8px; margin-top: 4px; border: none; background: none; color: var(--accent); font: inherit; font-size: 12px; cursor: pointer; }
   .breakdown-toggle:hover { text-decoration: underline; }
   .breakdown-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; border-radius: 6px; }
+  .breakdown-grip { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; padding: 0; border: none; border-radius: 6px; background: none; color: var(--muted); cursor: grab; touch-action: none; }
+  .breakdown-grip svg { width: 16px; height: 16px; }
+  .breakdown-grip:hover { color: var(--text); background: var(--subtle); }
+  .breakdown-grip:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .breakdown-card.dragging { opacity: 0.6; outline: 2px dashed var(--accent); outline-offset: 2px; }
+  .breakdown-card.dragging .breakdown-grip { cursor: grabbing; }
   .event-save { margin-left: auto; }
   .event-chips-label[style*="margin-left:auto"] + .event-save { margin-left: 6px; }
   .event-save:disabled { cursor: default; opacity: 0.6; }
@@ -949,6 +955,7 @@
     chart: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/></svg>',
     bounce: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg>',
     clock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
+    grip: '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg>',
   };
 
   // --- Helpers ---
@@ -1348,6 +1355,8 @@
   function renderBreakdowns(list) {
     list = (list || []).filter(function(b) { return !removing('bd:' + b.id); });
     if (!list.length) return '';
+    // Cards can be arranged when one site is in view (the order is per site)
+    var arrange = !isShared && list.length > 1 && !!(currentSite || sites.length === 1);
     var html = '<div class="grid-2" data-island="breakdowns" data-island-list>';
     list.forEach(function(b) {
       var key = b.group === '@version' ? 'version' : b.group;
@@ -1359,6 +1368,7 @@
           '<div style="min-width:0"><span class="card-title"' + (isShared ? '' : ' contenteditable="plaintext-only" spellcheck="false" title="Click to rename" data-bd-site="' + esc(b.site) + '" data-bd-event="' + esc(b.event) + '" data-bd-group="' + esc(b.group) + '" onkeydown="if(event.key===\'Enter\'){event.preventDefault();this.blur()}" onblur="renameBreakdown(this)"') + '>' + esc(b.label) + '</span>' +
             (sub ? '<div class="breakdown-sub">' + esc(sub) + '</div>' : '') + '</div>' +
           '<div class="breakdown-actions">' +
+            (arrange ? '<button class="breakdown-grip" aria-label="Move card: drag it, or use the arrow keys" title="Drag to move, or use the arrow keys" onpointerdown="startCardDrag(event, this)" onkeydown="moveCardKey(event, this)">' + icons.grip + '</button>' : '') +
             '<button class="event-chip breakdown-open" aria-expanded="false" data-event="' + esc(b.event) + '" data-group="' + esc(b.group) + '" onclick="openBreakdownDetail(this)" title="Trend, funnel and CSV for this event">Details</button>' +
             (isShared ? '' : '<button class="goal-remove" onclick="removeBreakdown(' + b.id + ', ' + jsArg(b.site) + ')" title="Remove card" aria-label="Remove card">&times;</button>') +
           '</div>' +
@@ -1444,6 +1454,66 @@
     expandedCards[id] = !more.hidden;
     btn.setAttribute('aria-expanded', String(!more.hidden));
     btn.textContent = more.hidden ? btn.getAttribute('data-more') : 'Show fewer';
+  };
+
+  // Arrange saved cards: drag the grip (mouse or touch), or press the arrow keys on it.
+  // The new order shows at once and is saved for the site.
+  function cardIds(grid) {
+    return [].map.call(grid.children, function(card) { return +card.getAttribute('data-island').slice(3); });
+  }
+  function saveCardOrder(grid) {
+    fetch(apiUrl('?breakdown_order'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ site: currentSite || sites[0], ids: cardIds(grid) })
+    }).then(function() { load(currentDays); });
+  }
+  function announceCardPosition(card) {
+    var cards = [].slice.call(card.parentNode.children);
+    announce('Card moved to position ' + (cards.indexOf(card) + 1) + ' of ' + cards.length);
+  }
+
+  window.startCardDrag = function(e, grip) {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    var card = grip.closest('.breakdown-card'), grid = card.parentNode;
+    var before = cardIds(grid).join();
+    card.classList.add('dragging');
+    function move(ev) {
+      // Near the top or bottom edge the page scrolls, so a card can travel far on a phone
+      if (ev.clientY < 60) window.scrollBy(0, -12);
+      else if (ev.clientY > window.innerHeight - 60) window.scrollBy(0, 12);
+      var over = document.elementFromPoint(ev.clientX, ev.clientY);
+      var target = over && over.closest('.breakdown-card');
+      if (!target || target === card || target.parentNode !== grid) return;
+      var later = card.compareDocumentPosition(target) & Node.DOCUMENT_POSITION_FOLLOWING;
+      grid.insertBefore(card, later ? target.nextSibling : target);
+    }
+    function end() {
+      document.removeEventListener('pointermove', move);
+      document.removeEventListener('pointerup', end);
+      document.removeEventListener('pointercancel', end);
+      card.classList.remove('dragging');
+      if (cardIds(grid).join() === before) return;
+      announceCardPosition(card);
+      saveCardOrder(grid);
+    }
+    document.addEventListener('pointermove', move);
+    document.addEventListener('pointerup', end);
+    document.addEventListener('pointercancel', end);
+  };
+
+  window.moveCardKey = function(e, grip) {
+    var step = { ArrowLeft: -1, ArrowUp: -1, ArrowRight: 1, ArrowDown: 1 }[e.key];
+    if (!step) return;
+    e.preventDefault();
+    var card = grip.closest('.breakdown-card'), grid = card.parentNode;
+    var next = step < 0 ? card.previousElementSibling : card.nextElementSibling;
+    if (!next) return;
+    grid.insertBefore(card, step < 0 ? next : next.nextSibling);
+    grip.focus();
+    announceCardPosition(card);
+    saveCardOrder(grid);
   };
 
   window.renameBreakdown = function(el) {
