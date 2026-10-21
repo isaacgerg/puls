@@ -225,8 +225,8 @@ From a site with 4 goals and 9 saved cards: the page got long, the chart ended u
 - [x] **Undo instead of instant removal** - removing a saved card or goal shows Undo for 6 s before it is sent; leaving the page sends it right away
 
 **Saved cards**
-- [ ] **Top 5 and Show all (n)** - expands in place (up to ~50 rows, then Details); an even grid with equal heights
-- [ ] **Card header at a glance** - total, change vs the previous period and a sparkline. Extra queries per card, mind the 60 s refresh at scale
+- [x] **Top 5 and Show all (n)** - expands in place (up to 50 rows, then Details); cards side by side share one height
+- [x] **Card header at a glance** - events in the period, change vs the previous period (neutral arrow: more can be good or bad) and a daily sparkline. One extra query per card covers both periods
 - [ ] **Reorder cards** - drag or arrow buttons; the order is stored per site on the server (position column, migration, endpoint), so shared links follow it
 
 **Goals**

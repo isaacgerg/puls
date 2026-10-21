@@ -976,6 +976,34 @@ test('api returns saved breakdowns grouped like the drill-down', function () {
     }
 });
 
+test('saved breakdowns carry their count, the previous count and a daily series', function () {
+    $name = 'glance_bd_' . uniqid();
+    $db = getTestDb();
+    $event = $db->prepare("INSERT INTO events (site, event_name, page_path, event_data, visitor_hash, created_at) VALUES ('test', ?, '/', ?, ?, ?)");
+    $at = fn ($ago) => date('Y-m-d 12:00:00', strtotime("-{$ago} days"));
+    // Today: twelve values and one event without the key, which no card row counts
+    for ($i = 1; $i <= 12; $i++) $event->execute([$name, json_encode(['where' => "v{$i}"]), "h{$i}", $at(0)]);
+    $event->execute([$name, json_encode(['other' => 'x']), 'h0', $at(0)]);
+    // Two days ago one more; ten days ago, in the previous 7-day period, two
+    $event->execute([$name, json_encode(['where' => 'v1']), 'h1', $at(2)]);
+    $event->execute([$name, json_encode(['where' => 'v1']), 'h1', $at(10)]);
+    $event->execute([$name, json_encode(['where' => 'v2']), 'h2', $at(10)]);
+    $db->prepare('INSERT INTO breakdowns (site, label, event_name, group_key, created_at) VALUES (?, ?, ?, ?, ?)')
+        ->execute(['test', 'Where', $name, 'where', date('Y-m-d H:i:s')]);
+
+    try {
+        $data = json_decode(http('GET', '/?api&days=7&share=' . createTestShareToken('test'))['body'], true);
+        $bd = collect($data['breakdowns'])->first(fn ($b) => $b['event'] === $name);
+        expect($bd['count'])->toBe(13)
+            ->and($bd['previousCount'])->toBe(2)
+            ->and($bd['series'])->toBe([0, 0, 0, 0, 1, 0, 12])
+            ->and($bd['rows'])->toHaveCount(12)
+            ->and($bd['total'])->toBe(12);
+    } finally {
+        $db->prepare('DELETE FROM breakdowns WHERE event_name = ?')->execute([$name]);
+    }
+});
+
 test('breakdown add and remove require auth', function () {
     $opts = [
         'header' => "Content-Type: application/json",

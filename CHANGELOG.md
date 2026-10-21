@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - The dashboard shows the chart right after the numbers, then goals, the summary, pages and sources. Saved cards come after pages and sources, so many cards no longer push the chart down the page.
 - The 60-second refresh replaces only the parts of the dashboard whose content changed. Everything else stays as it is: an open drill-down, the chosen tab, the chart's scroll position and whatever is under the pointer. Before, it redrew the whole page, so content jumped and a click could land on another card. The refresh also waits while the tab is hidden or you used the page in the last 10 seconds, and a refresh that fails keeps the current view instead of showing an error.
 - Removing a saved card or a goal shows an Undo button for six seconds before the removal is saved. Leaving the page in that time saves it right away.
+- Saved cards show the number of events in the period, the change against the previous period and a daily sparkline under the title. They list the top five values, and Show all expands the card in place (up to 50 values; Details has the rest). Cards side by side are the same height. The API returns `count`, `previousCount` and `series` for each saved card, and up to 50 `rows` instead of 10.
 
 ### Removed
 

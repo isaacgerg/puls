@@ -248,6 +248,19 @@
   .goal-item-new .goal-item-path { color: var(--accent); }
   .breakdown-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
   .breakdown-foot { font-size: 11px; color: var(--light); margin-top: 8px; }
+  /* Cards in a row share one height, and a card with fewer than five values keeps
+     the room for five, so the two-column grid stays even and Show all lines up */
+  .breakdown-card { display: flex; flex-direction: column; }
+  .breakdown-rows { flex: 1; margin-top: 6px; }
+  @media (min-width: 701px) { .breakdown-rows { min-height: 168px; } }
+  .breakdown-glance { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; margin-top: 12px; }
+  .breakdown-count { font-size: 22px; font-weight: 700; color: var(--text); letter-spacing: -0.02em; }
+  .breakdown-unit { font-size: 12px; color: var(--muted); }
+  .breakdown-trend { font-size: 12px; font-weight: 600; color: var(--muted); margin-left: 8px; white-space: nowrap; }
+  .breakdown-spark { flex-shrink: 0; overflow: visible; }
+  .breakdown-toggle { display: block; width: 100%; padding: 8px; margin-top: 4px; border: none; background: none; color: var(--accent); font: inherit; font-size: 12px; cursor: pointer; }
+  .breakdown-toggle:hover { text-decoration: underline; }
+  .breakdown-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; border-radius: 6px; }
   .event-save { margin-left: auto; }
   .event-chips-label[style*="margin-left:auto"] + .event-save { margin-left: 6px; }
   .event-save:disabled { cursor: default; opacity: 0.6; }
@@ -1349,12 +1362,16 @@
             '<button class="event-chip breakdown-open" aria-expanded="false" data-event="' + esc(b.event) + '" data-group="' + esc(b.group) + '" onclick="openBreakdownDetail(this)" title="Trend, funnel and CSV for this event">Details</button>' +
             (isShared ? '' : '<button class="goal-remove" onclick="removeBreakdown(' + b.id + ', ' + jsArg(b.site) + ')" title="Remove card" aria-label="Remove card">&times;</button>') +
           '</div>' +
-        '</div>';
+        '</div>' +
+        renderBreakdownGlance(b);
       if (!b.rows.length) {
-        html += '<p style="color:var(--muted);font-size:13px;margin-top:12px">No values in this period</p>';
+        html += '<p class="breakdown-rows" style="color:var(--muted);font-size:13px">No values in this period</p>';
       } else {
-        html += '<div style="margin-top:10px">';
-        b.rows.forEach(function(r) {
+        // Five rows; Show all expands the rest in place
+        var open = !!expandedCards[b.id];
+        html += '<div class="breakdown-rows">';
+        b.rows.forEach(function(r, i) {
+          if (i === CARD_ROWS) html += '<div id="bd-more-' + b.id + '"' + (open ? '' : ' hidden') + '>';
           var value = String(r.value);
           html += '<div class="trow">' +
             '<span class="trow-label" title="' + esc(value) + '">' + esc(value) + ' <span style="color:var(--light);font-size:11px">' + num(r.visitors) + '</span>' + (r.new ? '<span class="event-new">new</span>' : '') + '</span>' +
@@ -1362,16 +1379,72 @@
             '<span class="trow-val">' + num(r.count) + '</span>' +
           '</div>';
         });
-        html += '</div>';
+        if (b.rows.length > CARD_ROWS) {
+          var more = b.total > b.rows.length ? 'Show top ' + b.rows.length + ' of ' + num(b.total) : 'Show all (' + num(b.total) + ')';
+          html += '</div></div><button class="breakdown-toggle" aria-expanded="' + open + '" aria-controls="bd-more-' + b.id + '" data-more="' + esc(more) + '" onclick="toggleBreakdownRows(this, ' + b.id + ')">' + (open ? 'Show fewer' : esc(more)) + '</button>';
+        } else {
+          html += '</div>';
+        }
       }
       var foot = [];
-      if (b.total > b.rows.length) foot.push(num(b.total) + ' values');
       if (b.new) foot.push(num(b.new) + ' new vs previous period');
       if (foot.length) html += '<div class="breakdown-foot">' + foot.join(' · ') + '</div>';
       html += '</div>';
     });
     return html + '</div>';
   }
+
+  // A saved card at a glance: events with a value in the period, the change against the
+  // previous period and a daily sparkline. The arrow stays neutral: whether more is good
+  // depends on the event (more sign-ups, more missed searches).
+  function renderBreakdownGlance(b) {
+    var trend = '';
+    if (b.previousCount > 0) {
+      var pct = Math.round((b.count - b.previousCount) / b.previousCount * 100);
+      trend = '<span class="breakdown-trend" title="Previous period: ' + num(b.previousCount) + '">' +
+        (pct > 0 ? '▲ +' : (pct < 0 ? '▼ ' : '– ')) + pct + '%</span>';
+    }
+    return '<div class="breakdown-glance">' +
+      '<div><span class="breakdown-count">' + num(b.count) + '</span> <span class="breakdown-unit">events</span>' + trend + '</div>' +
+      sparkline(b.series || []) +
+    '</div>';
+  }
+
+  // Daily counts as a 2px line over a faint wash, the latest day marked. Each day is a
+  // hover target with its date and count; the values are also in Details.
+  function sparkline(series) {
+    var n = series.length;
+    if (n < 2) return '';
+    var w = 100, h = 32, pad = 6;
+    var max = Math.max.apply(null, series.concat([1]));
+    var start = currentFrom ? new Date(currentFrom + 'T00:00:00') : new Date(Date.now() - (n - 1) * 86400000);
+    var pts = series.map(function(v, i) {
+      return [pad + i * (w - 2 * pad) / (n - 1), h - pad - v / max * (h - 2 * pad)];
+    });
+    var line = pts.map(function(p) { return p[0].toFixed(1) + ',' + p[1].toFixed(1); }).join(' ');
+    var last = pts[n - 1];
+    var hits = series.map(function(v, i) {
+      var day = new Date(start.getTime() + i * 86400000);
+      return '<rect x="' + (pts[i][0] - (w - 2 * pad) / (n - 1) / 2).toFixed(1) + '" y="0" width="' + ((w - 2 * pad) / (n - 1)).toFixed(1) + '" height="' + h + '" fill="transparent"><title>' + formatDay(ymd(day)) + ': ' + num(v) + '</title></rect>';
+    }).join('');
+    return '<svg class="breakdown-spark" width="' + w + '" height="' + h + '" viewBox="0 0 ' + w + ' ' + h + '" aria-hidden="true">' +
+      '<path d="M' + line.replace(/ /g, ' L') + ' L' + last[0].toFixed(1) + ',' + (h - pad) + ' L' + pad + ',' + (h - pad) + ' Z" fill="var(--accent)" fill-opacity="0.1"/>' +
+      '<polyline points="' + line + '" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>' +
+      '<circle cx="' + last[0].toFixed(1) + '" cy="' + last[1].toFixed(1) + '" r="4" fill="var(--accent)" stroke="var(--card)" stroke-width="2"/>' +
+      hits +
+    '</svg>';
+  }
+
+  // Show all on a saved card expands the rest of its rows in place, and stays open across refreshes
+  var CARD_ROWS = 5;
+  var expandedCards = {};
+  window.toggleBreakdownRows = function(btn, id) {
+    var more = document.getElementById('bd-more-' + id);
+    more.hidden = !more.hidden;
+    expandedCards[id] = !more.hidden;
+    btn.setAttribute('aria-expanded', String(!more.hidden));
+    btn.textContent = more.hidden ? btn.getAttribute('data-more') : 'Show fewer';
+  };
 
   window.renameBreakdown = function(el) {
     var label = el.textContent.trim().slice(0, 100);
