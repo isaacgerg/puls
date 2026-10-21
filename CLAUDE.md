@@ -57,9 +57,11 @@ phpunit.xml             — Test configuration (Pest)
 tests/                  — Pest test suite (257 tests, unit + feature)
 docs/integrations.md    - Tracking setup: script attributes, events, keeping personal data out of URLs, excluding own visits, reverse proxies
 docs/api.md             - Read API reference (JSON/CSV, share tokens)
+docs/install.md         - Install and run: release download, shared hosting, Nginx, Apache, Forge, Docker, upgrading
+docs/configuration.md   - .env settings, users and access, share links, excluding own visits, white-label, CLI reference
 scripts/hooks/pre-push  — Git hook: runs Pest before allowing push
 scripts/build-release.sh — Builds release zip with runtime files only
-scripts/screenshots.sh  — Generates all README screenshots (headless Chrome + demo DB)
+scripts/readme-media.mjs - Generates every README image, the drill-down GIF and the social preview (headless Chrome over DevTools protocol + demo DB, ffmpeg)
 scripts/smoke.mjs       — Dashboard smoke test: headless Chrome over DevTools protocol, fails on JS errors (no npm deps)
 scripts/seed-demo.php   — Seeds a demo SQLite database with realistic fake data
 Dockerfile              — Alpine + PHP built-in server (~93MB image)
@@ -108,15 +110,15 @@ php puls user:add client --sites=their-site
 
 ### Screenshots
 
-All README screenshots are auto-generated from a seeded demo database:
+All README images are generated from a seeded demo database:
 
 ```bash
-bash scripts/screenshots.sh    # Requires: Chrome, Python 3 + Pillow
+node scripts/readme-media.mjs    # Requires: Node 22+, Chrome, ffmpeg
 ```
 
-This seeds `data/demo.sqlite` with 30 days of realistic fake data, starts a dev server, and captures 5 screenshots via headless Chrome using a share token URL. Dashboard state (theme, compare mode, active tabs) is controlled via URL hash params (`#theme=dark&compare=1&tabs=...`), which `dashboard.html` reads at init. The bots screenshot is cropped from a tall full-page capture using Pillow.
+This seeds a temporary database with 30 days of fake data (`scripts/seed-demo.php`, sessions of one to five pages, nothing dated after now), adds goals with targets, saved cards, a release and a chart note, logs in and drives headless Chrome over the DevTools protocol. Every image is cut to a dashboard element (`[data-island=...]`), so layout changes do not shift the crops. The drill-down GIF is recorded frame by frame with a drawn pointer and encoded with ffmpeg.
 
-Screenshots: `dashboard`, `dashboard-compare`, `events`, `bots`, `dashboard-light`.
+Images in `docs/screenshots/`: `dashboard` and `dashboard-light` (README hero, picked by the reader's color scheme), `dashboard-compare`, `events`, `cards`, `bots`, `drill-down.gif`, and `social-preview` (1280x640, uploaded by hand in the repository settings: GitHub has no API for it).
 
 ### Pre-push hook
 
