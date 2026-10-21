@@ -1008,7 +1008,7 @@
     if (currentSite) url += '&site=' + encodeURIComponent(currentSite);
     if (currentPath) url += '&path=' + encodeURIComponent(currentPath);
     if (currentChannel) url += '&channel=' + encodeURIComponent(currentChannel);
-    fetch(url)
+    return fetch(url)
       .then(function(r) {
         if (r.status === 401) {
           if (isShared) { app.innerHTML = '<div class="empty"><p>This link has expired or is no longer valid.</p></div>'; return; }
@@ -3585,13 +3585,8 @@
         ptr.style.height = '44px';
         ptrText.textContent = 'Loading...';
 
-        var url = API + '?api&days=' + currentDays;
-        if (currentSite) url += '&site=' + encodeURIComponent(currentSite);
-        if (currentPath) url += '&path=' + encodeURIComponent(currentPath);
-        if (currentChannel) url += '&channel=' + encodeURIComponent(currentChannel);
-        fetch(url)
-          .then(function(r) { return r.json(); })
-          .then(function(data) { if (data) render(data); })
+        // Same request as the dashboard: custom date range and share token included
+        load(currentDays)
           .finally(function() {
             ptr.classList.add('releasing');
             ptr.classList.remove('refreshing');

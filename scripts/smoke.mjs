@@ -350,6 +350,42 @@ async function main() {
   if (result2.exceptionDetails) errors.push(`Logged-in steps threw: ${result2.exceptionDetails.exception?.description}`);
   failures.push(...(result2.result?.value || []));
 
+  // 7. Installed app (PWA) with a custom date range: pull-to-refresh reloads that same range
+  const day = (ago) => new Date(Date.now() - ago * 86400000).toISOString().slice(0, 10);
+  const range = { from: day(20), to: day(10) };
+  await send('Runtime.evaluate', { expression: `localStorage.setItem('puls-from', '${range.from}'); localStorage.setItem('puls-to', '${range.to}')` });
+  await send('Page.addScriptToEvaluateOnNewDocument', { source: `Object.defineProperty(navigator, 'standalone', { value: true })` });
+  const wait4 = loaded();
+  await send('Page.navigate', { url: `${base}/` });
+  await wait4;
+  const installed = async (range) => {
+    const fails = [];
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+    const waitFor = async (fn, what, ms = 5000) => {
+      for (let t = 0; t < ms; t += 100) { if (fn()) return true; await sleep(100); }
+      fails.push(`timed out waiting for ${what}`);
+      return false;
+    };
+    if (!await waitFor(() => document.querySelector('#chart-card'), 'dashboard in the installed app')) return fails;
+    const urls = [];
+    const realFetch = window.fetch;
+    window.fetch = function(url) { urls.push(String(url)); return realFetch.apply(this, arguments); };
+    const touch = (type, y) => document.dispatchEvent(new TouchEvent(type, {
+      bubbles: true, touches: y === undefined ? [] : [new Touch({ identifier: 1, target: document.body, clientY: y })],
+    }));
+    window.scrollTo(0, 0);
+    touch('touchstart', 10);
+    touch('touchmove', 160);
+    touch('touchend');
+    if (!await waitFor(() => urls.some((u) => u.includes('?api')), 'pull-to-refresh request')) return fails;
+    const url = urls.find((u) => u.includes('?api'));
+    if (!url.includes(`from=${range.from}`) || !url.includes(`to=${range.to}`)) fails.push(`pull-to-refresh keeps the custom date range (requested ${url})`);
+    return fails;
+  };
+  const result3 = await send('Runtime.evaluate', { expression: `(${installed.toString()})(${JSON.stringify(range)})`, awaitPromise: true, returnByValue: true });
+  if (result3.exceptionDetails) errors.push(`Installed-app steps threw: ${result3.exceptionDetails.exception?.description}`);
+  failures.push(...(result3.result?.value || []));
+
   ws.close();
   failures.push(...errors);
   if (failures.length) {
