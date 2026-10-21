@@ -59,7 +59,7 @@ Every response compares with the previous period of the same length, in the `pre
 | `countries` | `[{code, name, visitors}]` |
 | `events`, `eventsTotal` | `[{event_name, count, visitors}]` |
 | `outbound`, `outboundTotal` | `[{url, clicks, visitors}]` |
-| `goals` | `[{path, label, type, conversions, rate}]`, `type` is `page` or `event` |
+| `goals` | `[{path, label, type, conversions, rate, previousConversions, series, target, targetPeriod}]`, `type` is `page` or `event`. `series` is the visitors who converted per day; `target` is a count per `targetPeriod` (`day`, `week` or `month`), or `null` |
 | `breakdowns` | Saved event cards: `[{id, site, label, event, group, rows, total, new, count, previousCount, series}]`. `rows` holds the top 50 values, `total` the number of values, `count` and `previousCount` the events with a value in this and the previous period, `series` their count per day |
 | `summary` | `{bestDay, bestDayViews, peakHour, peakHourViews, topPage, topPageViews, topSource, topSourceVisitors}` |
 | `versions` | `[{version, first_seen}]` from `data-version` |

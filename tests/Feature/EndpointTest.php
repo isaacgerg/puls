@@ -793,6 +793,75 @@ test('api counts conversions for event goals from the events table', function ()
     }
 });
 
+test('goals carry the previous period, a daily series and their target', function () {
+    $name = 'goal_glance_' . uniqid();
+    $db = getTestDb();
+    $event = $db->prepare("INSERT INTO events (site, event_name, page_path, visitor_hash, created_at) VALUES ('test', ?, '/', ?, ?)");
+    $at = fn ($ago) => date('Y-m-d 12:00:00', strtotime("-{$ago} days"));
+    // Today two visitors (one of them twice), two days ago one; ten days ago, in the previous period, three
+    foreach ([['a', 0], ['a', 0], ['b', 0], ['c', 2], ['d', 10], ['e', 10], ['f', 10]] as [$visitor, $ago]) {
+        $event->execute([$name, $visitor . $name, $at($ago)]);
+    }
+    $db->prepare("INSERT INTO goals (site, path, label, type, created_at, target, target_period) VALUES ('test', ?, '', 'event', ?, 10, 'week')")
+        ->execute([$name, date('Y-m-d H:i:s')]);
+
+    try {
+        $data = json_decode(http('GET', '/?api&days=7&share=' . createTestShareToken('test'))['body'], true);
+        $goal = collect($data['goals'])->first(fn ($g) => $g['path'] === $name);
+        expect($goal['conversions'])->toBe(3)
+            ->and($goal['previousConversions'])->toBe(3)
+            ->and($goal['series'])->toBe([0, 0, 0, 0, 1, 0, 2])
+            ->and($goal['target'])->toBe(10)
+            ->and($goal['targetPeriod'])->toBe('week');
+    } finally {
+        $db->prepare('DELETE FROM goals WHERE site = ? AND path = ?')->execute(['test', $name]);
+    }
+});
+
+test('a goal target can be set and cleared on the user\'s sites', function () {
+    $cookie = restrictedSession();
+    $post = fn (array $body) => http('POST', '/?goal_target', [
+        'header' => "Content-Type: application/json\r\n{$cookie}",
+        'content' => json_encode($body),
+    ], 8090)['status'];
+    $path = '/target-' . uniqid();
+    $db = getTestDb();
+    $db->prepare("INSERT INTO goals (site, path, label, type, created_at) VALUES ('test', ?, '', 'page', ?)")->execute([$path, date('Y-m-d H:i:s')]);
+    $target = fn () => $db->query('SELECT target, target_period FROM goals WHERE path = ' . $db->quote($path))->fetch(PDO::FETCH_NUM);
+
+    try {
+        expect(http('POST', '/?goal_target', ['header' => 'Content-Type: application/json', 'content' => json_encode(['site' => 'test', 'path' => $path, 'target' => 5])])['status'])->toBe(401)
+            ->and($post(['site' => 'not-my-site', 'path' => $path, 'target' => 5]))->toBe(403)
+            ->and($post(['site' => 'test', 'path' => $path, 'target' => 25, 'period' => 'month']))->toBe(200)
+            ->and($target())->toBe([25, 'month'])
+            ->and($post(['site' => 'test', 'path' => $path, 'target' => 3, 'period' => 'decade']))->toBe(200)
+            ->and($target())->toBe([3, 'week'])
+            ->and($post(['site' => 'test', 'path' => $path, 'target' => 0]))->toBe(200)
+            ->and($target())->toBe([null, null]);
+    } finally {
+        $db->prepare('DELETE FROM goals WHERE path = ?')->execute([$path]);
+    }
+});
+
+test('across sites a goal shows its target only when one site has that goal', function () {
+    $one = '/one-site-' . uniqid();
+    $both = '/two-sites-' . uniqid();
+    $db = getTestDb();
+    $goal = $db->prepare("INSERT INTO goals (site, path, label, type, created_at, target, target_period) VALUES (?, ?, '', 'page', ?, ?, 'week')");
+    $goal->execute(['test', $one, date('Y-m-d H:i:s'), 5]);
+    $goal->execute(['test', $both, date('Y-m-d H:i:s'), 5]);
+    $goal->execute(['other', $both, date('Y-m-d H:i:s'), 8]);
+
+    try {
+        $data = json_decode(http('GET', '/?api&days=7', ['header' => restrictedSession('full')], 8090)['body'], true);
+        $target = fn ($path) => collect($data['goals'])->first(fn ($g) => $g['path'] === $path)['target'];
+        expect($target($one))->toBe(5)
+            ->and($target($both))->toBeNull();
+    } finally {
+        $db->prepare('DELETE FROM goals WHERE path IN (?, ?)')->execute([$one, $both]);
+    }
+});
+
 test('goals table has a type column after migration', function () {
     $cols = array_column(getTestDb()->query('PRAGMA table_info(goals)')->fetchAll(PDO::FETCH_ASSOC), 'name');
     expect($cols)->toContain('type');
@@ -1045,17 +1114,18 @@ test('saved cards keep the order set for their site, and a new card goes last', 
 });
 
 /**
- * Log in as a user restricted to the "test" site on a second dev server that
- * reads a throwaway users file. Returns the session cookie header line.
+ * Log in on a second dev server that reads a throwaway users file: by default as a
+ * user restricted to the "test" site, or as "full" with access to every site.
+ * Returns the session cookie header line.
  */
-function restrictedSession(): string
+function restrictedSession(string $user = 'limited'): string
 {
     if (!isset($GLOBALS['restricted_server'])) {
         $file = $GLOBALS['test_dir'] . '/restricted-users.json';
-        file_put_contents($file, json_encode(['limited' => [
-            'password' => password_hash('limited-pass', PASSWORD_BCRYPT, ['cost' => 4]),
-            'sites' => ['test'],
-        ]]));
+        file_put_contents($file, json_encode([
+            'limited' => ['password' => password_hash('limited-pass', PASSWORD_BCRYPT, ['cost' => 4]), 'sites' => ['test']],
+            'full' => ['password' => password_hash('full-pass', PASSWORD_BCRYPT, ['cost' => 4]), 'sites' => []],
+        ]));
         $GLOBALS['restricted_server'] = startServer(8090, ['USERS_FILE' => $file, 'DB_PATH' => $GLOBALS['test_env']['DB_PATH']]);
     }
     $cookieFrom = function (array $headers): ?string {
@@ -1070,7 +1140,7 @@ function restrictedSession(): string
     $token = json_decode($r['body'], true)['token'];
     $r = http('POST', '/?login', [
         'header' => "Content-Type: application/x-www-form-urlencoded\r\nCookie: {$cookie}",
-        'content' => http_build_query(['_login' => 1, '_token' => $token, 'username' => 'limited', 'password' => 'limited-pass']),
+        'content' => http_build_query(['_login' => 1, '_token' => $token, 'username' => $user, 'password' => $user . '-pass']),
     ], 8090);
     return 'Cookie: ' . ($cookieFrom($r['headers']) ?? $cookie);
 }

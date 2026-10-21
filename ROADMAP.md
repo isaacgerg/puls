@@ -230,8 +230,8 @@ From a site with 4 goals and 9 saved cards: the page got long, the chart ended u
 - [x] **Reorder cards** - drag the grip (Pointer Events, mouse and touch) or arrow keys on it; the order is stored per site on the server (position column, migration v23, `?breakdown_order`), so shared links follow it
 
 **Goals**
-- [ ] **Goals as KPI tiles** - conversions large, rate, trend arrow vs the previous period, sparkline; goals without hits dimmed instead of "No hits yet"
-- [ ] **Goal target** - e.g. 10 per week, with a bar that fills. Decide how a weekly target maps to 30 days or a custom range
+- [x] **Goals as KPI tiles** - conversions large, rate, trend arrow vs the previous period (colored: more conversions is good), sparkline; goals without hits dimmed instead of "No hits yet"
+- [x] **Goal target** - a count per day, week or month with a bar that fills, scaled to the period on screen (10 per week is 43 over 30 days); migration v24, `?goal_target`
 
 ## Maintenance
 

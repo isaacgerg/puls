@@ -354,7 +354,19 @@ async function main() {
     const add = q('#goal-list .goal-item-new');
     if (!add || add.getAttribute('data-type') !== 'event') { fails.push('goal picker offers an unseen event'); return fails; }
     add.click();
-    await waitFor(() => [...document.querySelectorAll('.goal-row')].some((r) => r.textContent.includes('pwa_install') && r.textContent.includes('No hits yet')), 'unseen event goal shows No hits yet', 8000);
+    const goalTile = () => [...document.querySelectorAll('.goal-tile')].find((t) => t.textContent.includes('pwa_install'));
+    await waitFor(() => goalTile() && goalTile().classList.contains('is-empty'), 'unseen event goal is a dimmed tile', 8000);
+
+    // A goal target: Set target opens a form in the tile; the bar scales the target to the period
+    goalTile().querySelector('.goal-target-set').click();
+    const targetForm = goalTile().querySelector('.goal-target-form');
+    if (!targetForm || document.activeElement !== targetForm.elements.target) fails.push('Set target opens a form in the tile and focuses it');
+    else {
+      targetForm.elements.target.value = '3';
+      targetForm.elements.period.value = 'day';
+      targetForm.requestSubmit();
+      await waitFor(() => goalTile()?.querySelector('.goal-meter') && /^0 \/ 21/.test(goalTile().querySelector('.goal-target').textContent), 'target bar scaled to 7 days (3 per day = 21)', 8000);
+    }
     if (q('.menu-close').getAttribute('aria-label') !== 'Close settings') fails.push('settings close button is labelled');
 
     // Arranging saved cards: arrow keys on the grip, then dragging it back; the order is saved
@@ -389,11 +401,11 @@ async function main() {
     if (document.querySelectorAll('.breakdown-card').length !== cardCount - 1 || toast.hidden || !/Card removed/.test(toast.textContent)) fails.push('removing a card hides it and shows the Undo toast');
     q('#toast-undo').click();
     if (document.querySelectorAll('.breakdown-card').length !== cardCount || !toast.hidden) fails.push('Undo brings the card back');
-    const goalCount = document.querySelectorAll('.goal-row').length;
-    q('.goal-row .goal-remove').click();
-    if (document.querySelectorAll('.goal-row').length !== goalCount - 1 || !/Goal removed/.test(toast.textContent)) fails.push('removing a goal hides it behind the Undo toast');
+    const goalCount = document.querySelectorAll('.goal-tile').length;
+    q('.goal-tile .goal-remove').click();
+    if (document.querySelectorAll('.goal-tile').length !== goalCount - 1 || !/Goal removed/.test(toast.textContent)) fails.push('removing a goal hides it behind the Undo toast');
     q('#toast-undo').click();
-    if (document.querySelectorAll('.goal-row').length !== goalCount) fails.push('Undo brings the goal back');
+    if (document.querySelectorAll('.goal-tile').length !== goalCount) fails.push('Undo brings the goal back');
     q('.breakdown-card .goal-remove').click();
     window.dispatchEvent(new Event('pagehide'));
     let removed = false;
@@ -475,7 +487,7 @@ async function main() {
     failures.forEach((f) => console.error('  - ' + f));
     process.exitCode = 1;
   } else {
-    console.log('Dashboard smoke test passed: load, section order, islands kept across a refresh, release markers, breakdown card (count, sparkline, Show all) and its details, arranging cards (keys, drag), undo for card and goal removal, hostile names render as text, entry page bounce, annotations (shared view, add, relabel, remove), keyboard drill-down, group by version, funnel incl. unseen event, compare, 90 days, light theme, logged-in goal for an unseen event, tabs pattern, dialog focus trap, status announcements. No JS errors.');
+    console.log('Dashboard smoke test passed: load, section order, islands kept across a refresh, release markers, breakdown card (count, sparkline, Show all) and its details, arranging cards (keys, drag), undo for card and goal removal, hostile names render as text, entry page bounce, annotations (shared view, add, relabel, remove), keyboard drill-down, group by version, funnel incl. unseen event, compare, 90 days, light theme, logged-in goal for an unseen event (dimmed tile, target bar), tabs pattern, dialog focus trap, status announcements. No JS errors.');
   }
 }
 
