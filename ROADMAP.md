@@ -215,6 +215,24 @@ From customer integrations. Traffic per channel and campaign exists; what happen
 - [ ] **Path groups** — filter or group pageviews by prefix (`/workshop/*`), also as an API prefix filter
 - [ ] **Funnel with more than two steps** — same-day by design (daily visitor hash)
 
+## Epic 17: Dashboard at a Glance
+
+From a site with 4 goals and 9 saved cards: the page got long, the chart ended up below every card, a removed card could not be brought back, and the 60 s refresh redrew the whole page, so content jumped and a click could land on the wrong card.
+
+**Order and a calm refresh**
+- [x] **Order** - the numbers and the chart first, then goals, pages and sources; saved cards after them
+- [x] **Islands** - the refresh replaces only the sections and saved cards whose HTML changed; the rest keep their DOM (hover, focus, open drill-down, tab, chart scroll). Held while the tab is hidden or the viewer used the page in the last 10 s
+- [x] **Undo instead of instant removal** - removing a saved card or goal shows Undo for 6 s before it is sent; leaving the page sends it right away
+
+**Saved cards**
+- [ ] **Top 5 and Show all (n)** - expands in place (up to ~50 rows, then Details); an even grid with equal heights
+- [ ] **Card header at a glance** - total, change vs the previous period and a sparkline. Extra queries per card, mind the 60 s refresh at scale
+- [ ] **Reorder cards** - drag or arrow buttons; the order is stored per site on the server (position column, migration, endpoint), so shared links follow it
+
+**Goals**
+- [ ] **Goals as KPI tiles** - conversions large, rate, trend arrow vs the previous period, sparkline; goals without hits dimmed instead of "No hits yet"
+- [ ] **Goal target** - e.g. 10 per week, with a bar that fills. Decide how a weekly target maps to 30 days or a custom range
+
 ## Maintenance
 
 - [ ] **Release marker edge clipping** — `.chart-release` labels clip at the edge on narrow screens (fixed for chart notes, not for release markers)
@@ -238,3 +256,4 @@ Things to explore later — not committed to.
 - **Numeric aggregates on event data** — sum, mean and median of a numeric key (today: send buckets)
 - **Internal-site mode** — for logged-in apps: hide referrers and campaigns, show use per week and per role
 - **API pagination** — page past 1,000 rows in `expand`
+- **Saved card across events** - one card for several events that share a group key (e.g. two events with `where`); sending one event is the workaround today
