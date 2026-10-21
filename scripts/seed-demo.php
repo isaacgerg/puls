@@ -181,8 +181,10 @@ for ($daysAgo = 29; $daysAgo >= 0; $daysAgo--) {
     // Traffic grows over time + weekly pattern (weekends lower)
     $dayOfWeek = (int) date('w', strtotime("-{$daysAgo} days"));
     $weekendMult = ($dayOfWeek === 0 || $dayOfWeek === 6) ? 0.5 : 1.0;
-    $growthMult = 1 + ((30 - $daysAgo) / 30) * 0.4; // +40% over period
-    $pageviewsToday = (int) (250 * $weekendMult * $growthMult * (0.8 + (mt_rand(0, 40) / 100)));
+    // +90% over the period with modest noise, so the last 7 days beat the 7 before
+    // even though today has only just begun (README images show the 7-day trend)
+    $growthMult = 1 + ((30 - $daysAgo) / 30) * 0.9;
+    $pageviewsToday = (int) (220 * $weekendMult * $growthMult * (0.9 + (mt_rand(0, 20) / 100)));
 
     // About two pages per visit, never after now
     $visitorsToday = (int) ($pageviewsToday / 2);
