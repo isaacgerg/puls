@@ -427,6 +427,18 @@ test('share endpoint returns dashboard for valid token', function () {
         ->and($r['body'])->toContain($token);
 });
 
+test('dashboard config is injected once, after the page title', function () {
+    // The dashboard's own scripts may contain "</title>" (SVG tooltips); only the head's is the anchor
+    $shared = http('GET', '/?share=' . createTestShareToken('test'))['body'];
+    $dashboard = http('GET', '/', ['header' => restrictedSession()], 8090)['body'];
+    foreach (['PULS_SHARE' => $shared, 'PULS_BRANDING' => $dashboard] as $global => $body) {
+        expect(substr_count($body, "window.{$global}="))->toBe(1)
+            ->and($body)->toContain("</title><script>window.{$global}=");
+        $first = strpos($body, '</title>');
+        expect(strpos($body, "window.{$global}="))->toBe($first + strlen('</title><script>'));
+    }
+});
+
 test('share endpoint sets security headers', function () {
     $token = createTestShareToken('test');
     $r = http('GET', '/?share=' . $token);

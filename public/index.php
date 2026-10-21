@@ -144,7 +144,7 @@ if (isset($_GET['share'])) {
         $html = file_get_contents($dashboard);
         $shareJson = json_encode(['token' => $share['token'], 'site' => $share['site']]);
         $brandingJson = json_encode(['name' => $config['app_name'], 'tagline' => $config['app_tagline'], 'accent' => $config['app_accent']]);
-        $html = str_replace('</title>', '</title><script>window.PULS_SHARE=' . $shareJson . ';window.PULS_BRANDING=' . $brandingJson . ';</script>', $html);
+        $html = inject_after_title($html, '<script>window.PULS_SHARE=' . $shareJson . ';window.PULS_BRANDING=' . $brandingJson . ';</script>');
         respond($html, 200, 'text/html', security_headers());
     }
     respond('Dashboard file not found.', 404, 'text/plain');
@@ -250,7 +250,7 @@ $dashboard = __DIR__ . '/dashboard.html';
 if (file_exists($dashboard)) {
     $html = file_get_contents($dashboard);
     $brandingJson = json_encode(['name' => $config['app_name'], 'tagline' => $config['app_tagline'], 'accent' => $config['app_accent']]);
-    $html = str_replace('</title>', '</title><script>window.PULS_BRANDING=' . $brandingJson . ';</script>', $html);
+    $html = inject_after_title($html, '<script>window.PULS_BRANDING=' . $brandingJson . ';</script>');
     respond($html, 200, 'text/html', security_headers());
 }
 respond('Dashboard file not found.', 404, 'text/plain');
@@ -1682,6 +1682,16 @@ function fill_days(array $rows, string $start, int $days): array
         ];
     }
     return $out;
+}
+
+/**
+ * Insert markup right after the page's own </title>. Only the first one: the dashboard's
+ * scripts can contain "</title>" in strings (SVG tooltips), and markup injected there breaks them.
+ */
+function inject_after_title(string $html, string $markup): string
+{
+    $at = strpos($html, '</title>');
+    return $at === false ? $html : substr_replace($html, $markup, $at + strlen('</title>'), 0);
 }
 
 function security_headers(): array
