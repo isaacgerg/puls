@@ -862,6 +862,30 @@ test('across sites a goal shows its target only when one site has that goal', fu
     }
 });
 
+test('a user with several sites can load the all-sites view, limited to those sites', function () {
+    foreach (['test', 'other', 'not-theirs'] as $site) collectVia($site, '198.51.100.20');
+    $r = http('GET', '/?api&days=7', ['header' => restrictedSession('pair')], 8090);
+    $data = json_decode($r['body'], true);
+    expect($data)->toBeArray()
+        ->and(array_column($data['siteOverview'], 'site'))->toContain('test', 'other')->not->toContain('not-theirs');
+});
+
+test('across sites a user sees only the goals of the sites they can access', function () {
+    $mine = '/mine-' . uniqid();
+    $theirs = '/theirs-' . uniqid();
+    $db = getTestDb();
+    $goal = $db->prepare("INSERT INTO goals (site, path, label, type, created_at) VALUES (?, ?, 'Goal', 'page', ?)");
+    $goal->execute(['other', $mine, date('Y-m-d H:i:s')]);
+    $goal->execute(['not-theirs', $theirs, date('Y-m-d H:i:s')]);
+
+    try {
+        $data = json_decode(http('GET', '/?api&days=7', ['header' => restrictedSession('pair')], 8090)['body'], true);
+        expect(array_column($data['goals'], 'path'))->toContain($mine)->not->toContain($theirs);
+    } finally {
+        $db->prepare('DELETE FROM goals WHERE path IN (?, ?)')->execute([$mine, $theirs]);
+    }
+});
+
 test('goals table has a type column after migration', function () {
     $cols = array_column(getTestDb()->query('PRAGMA table_info(goals)')->fetchAll(PDO::FETCH_ASSOC), 'name');
     expect($cols)->toContain('type');
@@ -1115,7 +1139,8 @@ test('saved cards keep the order set for their site, and a new card goes last', 
 
 /**
  * Log in on a second dev server that reads a throwaway users file: by default as a
- * user restricted to the "test" site, or as "full" with access to every site.
+ * user restricted to the "test" site, as "pair" with "test" and "other", or as "full"
+ * with access to every site.
  * Returns the session cookie header line.
  */
 function restrictedSession(string $user = 'limited'): string
@@ -1124,6 +1149,7 @@ function restrictedSession(string $user = 'limited'): string
         $file = $GLOBALS['test_dir'] . '/restricted-users.json';
         file_put_contents($file, json_encode([
             'limited' => ['password' => password_hash('limited-pass', PASSWORD_BCRYPT, ['cost' => 4]), 'sites' => ['test']],
+            'pair' => ['password' => password_hash('pair-pass', PASSWORD_BCRYPT, ['cost' => 4]), 'sites' => ['test', 'other']],
             'full' => ['password' => password_hash('full-pass', PASSWORD_BCRYPT, ['cost' => 4]), 'sites' => []],
         ]));
         $GLOBALS['restricted_server'] = startServer(8090, ['USERS_FILE' => $file, 'DB_PATH' => $GLOBALS['test_env']['DB_PATH']]);
