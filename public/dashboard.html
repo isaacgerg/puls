@@ -1308,12 +1308,13 @@
       '</div>');
     }
 
-    // The numbers and the chart first, then goals, pages and sources; saved cards after them
+    // The numbers and the chart first, then the summary row, goals, pages and sources; saved
+    // cards after them. The summary sits above the Goals heading so it does not read as goals.
     html += island('stats', renderStats(d, totalViews, totalVisitors, pagesPerVisitor, viewsTrend, visitorsTrend, ppvTrend, bounceTrend, sessionTrend)) +
       island('chart', renderChart(d)) +
       island('sites', renderSiteOverview(d.siteOverview)) +
-      renderGoals(d.goals) +
-      island('summary', renderSummary(d.summary));
+      island('summary', renderSummary(d.summary)) +
+      renderGoals(d.goals);
 
     if (!filtered) {
       html += island('pages', '<div class="grid-2">' +

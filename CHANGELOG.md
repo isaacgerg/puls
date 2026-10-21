@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Changed
+
+- The summary row (best day, peak hour, top page, top source) comes before the goals, so the Goals heading no longer seems to cover it.
+
 ## [1.26.0] - 2026-10-21
 
 ### Added
