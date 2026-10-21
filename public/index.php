@@ -144,7 +144,7 @@ if (isset($_GET['share'])) {
         $html = file_get_contents($dashboard);
         $shareJson = json_encode(['token' => $share['token'], 'site' => $share['site']]);
         $brandingJson = json_encode(['name' => $config['app_name'], 'tagline' => $config['app_tagline'], 'accent' => $config['app_accent']]);
-        $html = str_replace('</title>', '</title><script>window.PULS_SHARE=' . $shareJson . ';window.PULS_BRANDING=' . $brandingJson . ';</script>', $html);
+        $html = inject_after_title($html, '<script>window.PULS_SHARE=' . $shareJson . ';window.PULS_BRANDING=' . $brandingJson . ';</script>');
         respond($html, 200, 'text/html', security_headers());
     }
     respond('Dashboard file not found.', 404, 'text/plain');
@@ -250,7 +250,7 @@ $dashboard = __DIR__ . '/dashboard.html';
 if (file_exists($dashboard)) {
     $html = file_get_contents($dashboard);
     $brandingJson = json_encode(['name' => $config['app_name'], 'tagline' => $config['app_tagline'], 'accent' => $config['app_accent']]);
-    $html = str_replace('</title>', '</title><script>window.PULS_BRANDING=' . $brandingJson . ';</script>', $html);
+    $html = inject_after_title($html, '<script>window.PULS_BRANDING=' . $brandingJson . ';</script>');
     respond($html, 200, 'text/html', security_headers());
 }
 respond('Dashboard file not found.', 404, 'text/plain');
@@ -1540,15 +1540,24 @@ function get_api_data(array $config, array $user): string
         $stmt->execute($siteParams);
         foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $bd) {
             [$rows, $new] = event_group($db, $bd['event_name'], $bd['group_key'], $dateFilter, $dateParams, 'AND site = ?', [$bd['site']], $prevSince, $since, 200);
+            $perDay = event_group_days($db, $bd['event_name'], $bd['group_key'], $prevSince, $until, $bd['site']);
+            $series = [];
+            for ($i = 0; $i < $days; $i++) {
+                $series[] = $perDay[date('Y-m-d', strtotime("+{$i} days", strtotime($since)))] ?? 0;
+            }
             $breakdowns[] = [
                 'id' => (int) $bd['id'],
                 'site' => $bd['site'],
                 'label' => $bd['label'] ?: $bd['event_name'],
                 'event' => $bd['event_name'],
                 'group' => $bd['group_key'],
-                'rows' => array_slice($rows, 0, 10),
+                // The card shows five rows and expands in place to these
+                'rows' => array_slice($rows, 0, 50),
                 'total' => count($rows),
                 'new' => $new,
+                'count' => array_sum($series),
+                'previousCount' => array_sum(array_filter($perDay, fn ($date) => $date < $since, ARRAY_FILTER_USE_KEY)),
+                'series' => $series,
             ];
         }
     }
@@ -1664,6 +1673,23 @@ function event_group(PDO $db, string $eventName, string $groupKey, string $dateF
     return [$rows, $new];
 }
 
+/**
+ * Daily counts of one event that has a value for the group key, from $prevSince up to
+ * $until (or now), as date => count: a saved card's total, its change against the
+ * previous period and its sparkline, from one query.
+ */
+function event_group_days(PDO $db, string $eventName, string $groupKey, string $prevSince, string $until, string $site): array
+{
+    $isVersion = $groupKey === '@version';
+    $valueExpr = $isVersion ? 'app_version' : 'json_extract(event_data, ?)';
+    $valueParams = $isVersion ? [] : ['$."' . $groupKey . '"'];
+    $untilFilter = $until ? 'AND created_at < ?' : '';
+
+    $stmt = $db->prepare("SELECT DATE(created_at) as date, COUNT(*) as count FROM events WHERE event_name = ? AND created_at >= ? {$untilFilter} AND site = ? AND {$valueExpr} IS NOT NULL GROUP BY date");
+    $stmt->execute(array_merge([$eventName, $prevSince], $until ? [$until] : [], [$site], $valueParams));
+    return array_map('intval', array_column($stmt->fetchAll(PDO::FETCH_ASSOC), 'count', 'date'));
+}
+
 function fill_days(array $rows, string $start, int $days): array
 {
     $byDate = [];
@@ -1682,6 +1708,16 @@ function fill_days(array $rows, string $start, int $days): array
         ];
     }
     return $out;
+}
+
+/**
+ * Insert markup right after the page's own </title>. Only the first one: the dashboard's
+ * scripts can contain "</title>" in strings (SVG tooltips), and markup injected there breaks them.
+ */
+function inject_after_title(string $html, string $markup): string
+{
+    $at = strpos($html, '</title>');
+    return $at === false ? $html : substr_replace($html, $markup, $at + strlen('</title>'), 0);
 }
 
 function security_headers(): array

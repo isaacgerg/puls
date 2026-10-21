@@ -82,6 +82,9 @@ async function main() {
   execFileSync('php', ['-r', `
     $db = new PDO('sqlite:' . $argv[1]);
     $db->exec("INSERT INTO breakdowns (site, label, event_name, group_key, created_at) VALUES ('demo.example.com', 'Smoke card', 'cta_click', 'location', datetime('now'))");
+    // More than five values, so the card offers Show all
+    $more = $db->prepare("INSERT INTO events (site, event_name, page_path, event_data, visitor_hash, created_at) VALUES ('demo.example.com', 'cta_click', '/', ?, ?, datetime('now'))");
+    for ($i = 0; $i < 6; $i++) $more->execute([json_encode(['location' => 'extra' . $i]), 'extra-' . $i]);
     // Hostile names from the public endpoints must render as text, never as markup or script
     $hostile = 'x"><img src=x onerror="window.__xss=1">' . "');window.__xss=2;('";
     $ev = $db->prepare("INSERT INTO events (site, event_name, page_path, visitor_hash, created_at) VALUES ('demo.example.com', ?, '/', ?, datetime('now'))");
@@ -169,6 +172,19 @@ async function main() {
     expect(q('#chart-card .chart-release'), 'release marker on pageview chart');
     expect(q('.breakdown-card'), 'saved breakdown card');
     expect(q('.breakdown-card .event-new'), 'NEW badge on breakdown card');
+
+    // Saved card at a glance: count and sparkline, five rows, Show all expands in place
+    const bdCard = q('.breakdown-card');
+    expect(/^\d+$/.test(bdCard.querySelector('.breakdown-count')?.textContent || '') && bdCard.querySelectorAll('.breakdown-spark rect title').length === 7, 'saved card shows its count and a 7-day sparkline');
+    const shownRows = () => [...bdCard.querySelectorAll('.breakdown-rows .trow')].filter((r) => r.offsetParent !== null).length;
+    const bdToggle = bdCard.querySelector('.breakdown-toggle');
+    expect(bdToggle && shownRows() === 5, 'saved card shows five rows and Show all');
+    if (bdToggle) {
+      bdToggle.click();
+      expect(shownRows() > 5 && bdToggle.getAttribute('aria-expanded') === 'true' && bdToggle.textContent === 'Show fewer', 'Show all expands the card in place');
+      bdToggle.click();
+      expect(shownRows() === 5, 'Show fewer collapses it again');
+    }
     expect(/^\d+(\.\d)?% bounce$/.test(q('[data-panel="entry"] .trow-bounce')?.textContent || ''), 'bounce rate on entry pages');
 
     // Order: the chart right after the numbers, saved cards after pages and sources
@@ -430,7 +446,7 @@ async function main() {
     failures.forEach((f) => console.error('  - ' + f));
     process.exitCode = 1;
   } else {
-    console.log('Dashboard smoke test passed: load, section order, islands kept across a refresh, release markers, breakdown card and its details, undo for card and goal removal, hostile names render as text, entry page bounce, annotations (shared view, add, relabel, remove), keyboard drill-down, group by version, funnel incl. unseen event, compare, 90 days, light theme, logged-in goal for an unseen event, tabs pattern, dialog focus trap, status announcements. No JS errors.');
+    console.log('Dashboard smoke test passed: load, section order, islands kept across a refresh, release markers, breakdown card (count, sparkline, Show all) and its details, undo for card and goal removal, hostile names render as text, entry page bounce, annotations (shared view, add, relabel, remove), keyboard drill-down, group by version, funnel incl. unseen event, compare, 90 days, light theme, logged-in goal for an unseen event, tabs pattern, dialog focus trap, status announcements. No JS errors.');
   }
 }
 
