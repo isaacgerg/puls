@@ -230,14 +230,34 @@
   .summary-card-sub { font-size: 11px; color: var(--light); margin-top: 2px; }
 
   /* Goals */
-  .goal-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); }
-  .goal-row:last-child { border-bottom: none; }
-  .goal-label { font-weight: 600; font-size: 13px; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .goal-path { font-size: 11px; color: var(--muted); }
+  /* Goals: tiles like the numbers at the top; a goal without hits is dimmed */
+  .goal-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; margin-bottom: 20px; }
+  @media (max-width: 600px) { .goal-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; } }
+  @media (max-width: 374px) { .goal-grid { grid-template-columns: 1fr; } }
+  .goal-grid-title { grid-column: 1 / -1; margin-bottom: -6px; }
+  .goal-tile { display: flex; flex-direction: column; gap: 8px; min-width: 0; background: var(--card); border-radius: var(--radius); padding: 16px 18px; border: 1px solid var(--border); box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+  .goal-tile.is-empty { opacity: 0.55; }
+  .goal-tile-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 6px; }
+  .goal-tile-body { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 8px; }
+  .goal-name { display: flex; align-items: center; min-width: 0; }
+  .goal-label { font-weight: 600; font-size: 13px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .goal-name .goal-type { flex-shrink: 0; }
+  .goal-value { font-size: 26px; font-weight: 700; color: var(--text); letter-spacing: -0.02em; line-height: 1.2; }
+  .goal-meta { font-size: 12px; color: var(--muted); }
+  .goal-meta .stat-trend { display: inline-block; margin-left: 6px; white-space: nowrap; }
+  .goal-meter { height: 6px; margin-top: auto; border-radius: 3px; background: var(--subtle); overflow: hidden; }
+  .goal-meter-fill { height: 100%; border-radius: 3px; background: var(--accent); }
+  .goal-meter.reached .goal-meter-fill { background: var(--green); }
+  .goal-target { font-size: 11px; color: var(--muted); }
+  .goal-target-set { align-self: flex-start; margin-top: auto; padding: 0; border: none; background: none; font: inherit; font-size: 11px; color: var(--accent); text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+  .goal-target .goal-target-set { margin-left: 4px; color: var(--muted); }
+  .goal-target-form { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: auto; }
+  .goal-target-form input, .goal-target-form select, .goal-target-form button { font: inherit; font-size: 12px; padding: 4px 6px; border: 1px solid var(--border); border-radius: 6px; background: var(--card); color: var(--text); }
+  .goal-target-form input { width: 64px; }
+  .goal-target-form button { cursor: pointer; }
+  .goal-target-form button[type="submit"] { background: var(--accent); border-color: var(--accent); color: #fff; }
   .goal-type { font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; color: var(--muted); border: 1px solid var(--border); border-radius: 999px; padding: 0 5px; margin-left: 6px; vertical-align: 1px; }
   .goal-list-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--light); padding: 8px 8px 2px; }
-  .goal-rate { font-size: 20px; font-weight: 700; color: var(--accent); white-space: nowrap; }
-  .goal-meta { font-size: 11px; color: var(--light); white-space: nowrap; text-align: right; }
   .breakdown-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
   .breakdown-card .card-title[contenteditable] { cursor: text; border-radius: 4px; outline: none; }
   .breakdown-card .card-title[contenteditable]:hover, .breakdown-card .card-title[contenteditable]:focus { box-shadow: 0 0 0 1px var(--border); }
@@ -1102,8 +1122,8 @@
   }
 
   // Auto-refresh every 60 seconds. Held while the tab is hidden, while the viewer is using the
-  // page (pointer, scroll or keys in the last 10 s), and while the UTM wizard, the note form
-  // or a card rename is in use; it runs as soon as none of that applies.
+  // page (pointer, scroll or keys in the last 10 s), and while the UTM wizard, the note form,
+  // a goal target or a card rename is in use; it runs as soon as none of that applies.
   function utmWizardActive() {
     var path = document.getElementById('utm-path');
     var campaign = document.getElementById('utm-campaign');
@@ -1117,7 +1137,7 @@
   });
   setInterval(function() {
     if (Date.now() - lastLoad < 60000 || document.hidden || Date.now() - lastActivity < 10000) return;
-    if (utmWizardActive() || noteFormOpen() || (document.activeElement && document.activeElement.isContentEditable)) return;
+    if (utmWizardActive() || noteFormOpen() || editingTarget !== null || (document.activeElement && document.activeElement.isContentEditable)) return;
     load(currentDays, true);
   }, 5000);
 
@@ -1292,7 +1312,7 @@
     html += island('stats', renderStats(d, totalViews, totalVisitors, pagesPerVisitor, viewsTrend, visitorsTrend, ppvTrend, bounceTrend, sessionTrend)) +
       island('chart', renderChart(d)) +
       island('sites', renderSiteOverview(d.siteOverview)) +
-      island('goals', renderGoals(d.goals)) +
+      renderGoals(d.goals) +
       island('summary', renderSummary(d.summary));
 
     if (!filtered) {
@@ -1664,24 +1684,80 @@
     var site = currentSite || (sites.length === 1 ? sites[0] : '');
     goals = (goals || []).filter(function(g) { return !removing('goal:' + site + '\n' + g.path); });
     if (!goals.length || isShared) return '';
-    var html = '<div class="card"><span class="card-title">Goals</span><div style="margin-top:12px">';
+    // One island per goal, so editing a target is not redrawn when another goal changes
+    var html = '<div class="goal-grid" data-island="goals" data-island-list>' +
+      '<div class="goal-grid-title" data-island="goals-title"><span class="card-title">Goals</span></div>';
     goals.forEach(function(g) {
-      var isEvent = g.type === 'event';
-      html += '<div class="goal-row">' +
-        '<div style="flex:1;min-width:0">' +
-          '<div class="goal-label">' + esc(g.label) + (isEvent ? '<span class="goal-type">event</span>' : '') + '</div>' +
-          (g.label !== g.path ? '<div class="goal-path">' + esc(g.path) + '</div>' : '') +
+      var isEvent = g.type === 'event', empty = !g.conversions;
+      var trend = '';
+      if (g.previousConversions > 0) {
+        var pct = Math.round((g.conversions - g.previousConversions) / g.previousConversions * 100);
+        trend = '<span class="stat-trend ' + (pct > 0 ? 'up' : (pct < 0 ? 'down' : 'flat')) + '" title="Previous period: ' + num(g.previousConversions) + '">' +
+          (pct > 0 ? '▲ +' : (pct < 0 ? '▼ ' : '– ')) + pct + '%</span>';
+      }
+      html += '<div class="goal-tile' + (empty ? ' is-empty' : '') + '" data-island="goal:' + esc(goalKey(g)) + '">' +
+        '<div class="goal-tile-head">' +
+          '<div class="goal-name"><span class="goal-label" title="' + esc(g.path) + '">' + esc(g.label) + '</span>' + (isEvent ? '<span class="goal-type">event</span>' : '') + '</div>' +
+          '<button class="goal-remove" onclick="removeGoal(' + jsArg(g.path) + ')" title="Remove goal" aria-label="Remove goal">&times;</button>' +
         '</div>' +
-        '<div style="text-align:right">' +
-          '<div class="goal-rate">' + g.rate + '%</div>' +
-          '<div class="goal-meta">' + (g.conversions ? num(g.conversions) + ' of ' + num(lastData.totals.visitors) + ' visitors' : 'No hits yet') + '</div>' +
+        '<div class="goal-tile-body">' +
+          '<div><div class="goal-value">' + num(g.conversions) + '</div>' +
+          '<div class="goal-meta">' + (empty ? 'No hits in this period' : g.rate + '% of visitors') + trend + '</div></div>' +
+          (empty ? '' : sparkline(g.series || [])) +
         '</div>' +
-        '<button class="goal-remove" onclick="removeGoal(' + jsArg(g.path) + ')" title="Remove goal">&times;</button>' +
+        renderGoalTarget(g, site) +
       '</div>';
     });
-    html += '</div></div>';
-    return html;
+    return html + '</div>';
   }
+
+  // A target is a count per day, week or month, scaled to the period shown: 10 per week
+  // is 43 over 30 days. Targets are per site, so they are set with one site in view.
+  var TARGET_DAYS = { day: 1, week: 7, month: 30 };
+  var editingTarget = null;
+  // Across sites the same path can be a goal with different labels, so a goal is its type, path and label
+  function goalKey(g) { return [g.type, g.path, g.label].join('\n'); }
+  function renderGoalTarget(g, site) {
+    var path = jsArg(g.path), key = jsArg(goalKey(g));
+    if (editingTarget === goalKey(g)) {
+      var period = g.targetPeriod || 'week';
+      return '<form class="goal-target-form" onsubmit="saveGoalTarget(event, ' + path + ')" onkeydown="if(event.key===\'Escape\')editGoalTarget(null)">' +
+        '<input type="number" name="target" min="1" step="1" required value="' + (g.target || '') + '" aria-label="Target">' +
+        '<select name="period" aria-label="Target period">' + ['day', 'week', 'month'].map(function(p) {
+          return '<option value="' + p + '"' + (p === period ? ' selected' : '') + '>per ' + p + '</option>';
+        }).join('') + '</select>' +
+        '<button type="submit">Save</button>' +
+        (g.target ? '<button type="button" onclick="saveGoalTarget(event, ' + path + ', true)">Clear</button>' : '') +
+        '<button type="button" onclick="editGoalTarget(null)">Cancel</button>' +
+      '</form>';
+    }
+    if (!g.target) return site ? '<button class="goal-target-set" onclick="editGoalTarget(' + key + ')">Set target</button>' : '';
+    var goal = Math.max(1, Math.round(g.target * currentDays / TARGET_DAYS[g.targetPeriod]));
+    var reached = g.conversions >= goal;
+    return '<div class="goal-meter' + (reached ? ' reached' : '') + '" role="progressbar" aria-label="Target" aria-valuemin="0" aria-valuemax="' + goal + '" aria-valuenow="' + Math.min(g.conversions, goal) + '">' +
+        '<div class="goal-meter-fill" style="width:' + Math.min(100, g.conversions / goal * 100) + '%"></div></div>' +
+      '<div class="goal-target">' + num(g.conversions) + ' / ' + num(goal) + (reached ? ' · reached' : '') +
+        ' <button class="goal-target-set" onclick="editGoalTarget(' + key + ')" title="Change the target">' + num(g.target) + ' per ' + g.targetPeriod + '</button></div>';
+  }
+
+  window.editGoalTarget = function(key) {
+    editingTarget = key;
+    render(lastData);
+    var input = key !== null && document.querySelector('.goal-target-form input');
+    if (input) input.focus();
+  };
+
+  window.saveGoalTarget = function(e, path, clear) {
+    e.preventDefault();
+    var form = e.target.closest('form');
+    var site = currentSite || (sites.length === 1 ? sites[0] : '');
+    editingTarget = null;
+    fetch(apiUrl('?goal_target'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ site: site, path: path, target: clear ? 0 : +form.elements.target.value, period: form.elements.period.value })
+    }).then(function() { load(currentDays); });
+  };
 
   function renderSummary(summary) {
     if (!summary) return '';

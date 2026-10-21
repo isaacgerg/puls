@@ -185,6 +185,20 @@ if (isset($_GET['goal_remove']) && $_SERVER['REQUEST_METHOD'] === 'POST') {
     respond(json_encode(['ok' => true]), 200, 'application/json');
 }
 
+// A goal's target: a count per day, week or month; 0 or none clears it
+if (isset($_GET['goal_target']) && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    require_auth();
+    $input = json_decode(file_get_contents('php://input'), true) ?: [];
+    if (empty($input['site']) || empty($input['path'])) respond('', 400);
+    require_site_access($config, (string) $input['site']);
+    $target = min(1000000, max(0, (int) ($input['target'] ?? 0)));
+    $period = in_array($input['period'] ?? '', ['day', 'week', 'month'], true) ? $input['period'] : 'week';
+    $db = get_db($config['db_path']);
+    $db->prepare('UPDATE goals SET target = ?, target_period = ? WHERE site = ? AND path = ?')
+        ->execute([$target ?: null, $target ? $period : null, $input['site'], $input['path']]);
+    respond(json_encode(['ok' => true]), 200, 'application/json');
+}
+
 // Saved breakdowns: an event grouped on one key, shown as its own dashboard card
 if ((isset($_GET['breakdown_add']) || isset($_GET['breakdown_remove']) || isset($_GET['breakdown_order'])) && $_SERVER['REQUEST_METHOD'] === 'POST') {
     require_auth();
@@ -1513,24 +1527,30 @@ function get_api_data(array $config, array $user): string
     $goals = [];
     $goalsTable = $db->query("SELECT name FROM sqlite_master WHERE type='table' AND name='goals'")->fetch();
     if ($goalsTable && !$path && !$channel) {
-        $stmt = $db->prepare("SELECT path, label, type FROM goals WHERE site = ? ORDER BY created_at");
+        $stmt = $db->prepare("SELECT path, label, type, target, target_period FROM goals WHERE site = ? ORDER BY created_at");
         $goalSite = $site ?: '';
         if ($goalSite) {
             $stmt->execute([$goalSite]);
         } else {
-            $stmt = $db->query("SELECT DISTINCT path, label, type FROM goals ORDER BY created_at");
+            // Across sites a goal has a single target only when one site has that goal
+            // (the dashboard of a hub with one site asks without a site)
+            $stmt = $db->query("SELECT path, label, type, CASE WHEN COUNT(*) = 1 THEN MAX(target) END AS target, CASE WHEN COUNT(*) = 1 THEN MAX(target_period) END AS target_period FROM goals GROUP BY path, label, type ORDER BY MIN(created_at)");
         }
         $goalRows = $stmt->fetchAll(PDO::FETCH_ASSOC);
         $totalVisitors = (int) ($totals['visitors'] ?? 0);
         foreach ($goalRows as $g) {
-            // A goal is a page path or an event name; both count distinct visitors who reached it
-            if ($g['type'] === 'event') {
-                $stmt = $db->prepare("SELECT COUNT(DISTINCT visitor_hash) FROM events WHERE event_name = ? AND {$dateFilter} {$siteFilter}");
-            } else {
-                $stmt = $db->prepare("SELECT COUNT(DISTINCT visitor_hash) FROM pageviews WHERE path = ? AND {$dateFilter} {$siteFilter}");
+            // A goal is a page path or an event name; both count distinct visitors who reached it,
+            // per day over this and the previous period. Visitor hashes change every day, so no
+            // visitor is counted on two days and a period's visitors are the sum of its days.
+            [$table, $column] = $g['type'] === 'event' ? ['events', 'event_name'] : ['pageviews', 'path'];
+            $stmt = $db->prepare("SELECT DATE(created_at) as date, COUNT(DISTINCT visitor_hash) as visitors FROM {$table} WHERE {$column} = ? AND created_at >= ? {$untilFilter} {$siteFilter} GROUP BY date");
+            $stmt->execute(array_merge([$g['path'], $prevSince], $untilParams, $siteParams));
+            $perDay = array_map('intval', array_column($stmt->fetchAll(PDO::FETCH_ASSOC), 'visitors', 'date'));
+            $series = [];
+            for ($i = 0; $i < $days; $i++) {
+                $series[] = $perDay[date('Y-m-d', strtotime("+{$i} days", strtotime($since)))] ?? 0;
             }
-            $stmt->execute(array_merge([$g['path']], $dateParams, $siteParams));
-            $conversions = (int) $stmt->fetchColumn();
+            $conversions = array_sum($series);
             $rate = $totalVisitors > 0 ? round(100 * $conversions / $totalVisitors, 1) : 0;
             $goals[] = [
                 'path' => $g['path'],
@@ -1538,6 +1558,10 @@ function get_api_data(array $config, array $user): string
                 'type' => $g['type'] ?: 'page',
                 'conversions' => $conversions,
                 'rate' => $rate,
+                'previousConversions' => array_sum(array_filter($perDay, fn ($date) => $date < $since, ARRAY_FILTER_USE_KEY)),
+                'series' => $series,
+                'target' => $g['target'] !== null ? (int) $g['target'] : null,
+                'targetPeriod' => $g['target_period'],
             ];
         }
     }
@@ -2016,7 +2040,7 @@ function meta_ad_params(): array
 
 function run_migrations(PDO $db): void
 {
-    $currentVersion = 23; // Bump this when adding new migrations
+    $currentVersion = 24; // Bump this when adding new migrations
 
     // Use SQLite's built-in PRAGMA user_version (per-database, no external file)
     $version = (int) $db->query('PRAGMA user_version')->fetchColumn();
@@ -2454,6 +2478,17 @@ function migrate_schema(PDO $db, int $version, int $currentVersion): void
         $bdCols = array_column($db->query('PRAGMA table_info(breakdowns)')->fetchAll(PDO::FETCH_ASSOC), 'name');
         if (!in_array('position', $bdCols)) {
             $db->exec('ALTER TABLE breakdowns ADD COLUMN position INTEGER NOT NULL DEFAULT 0');
+        }
+    }
+
+    // v24: an optional target per goal, a count per day, week or month
+    if ($version < 24) {
+        $goalCols = array_column($db->query('PRAGMA table_info(goals)')->fetchAll(PDO::FETCH_ASSOC), 'name');
+        if (!in_array('target', $goalCols)) {
+            $db->exec('ALTER TABLE goals ADD COLUMN target INTEGER');
+        }
+        if (!in_array('target_period', $goalCols)) {
+            $db->exec('ALTER TABLE goals ADD COLUMN target_period TEXT');
         }
     }
 

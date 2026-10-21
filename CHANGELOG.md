@@ -10,9 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ### Added
 
 - Saved cards can be put in any order. Drag a card by its grip, with the mouse or a finger, or focus the grip and use the arrow keys. The order is saved per site, so everyone with access and shared links see the same order, and a new card goes last. In the all-sites view, cards are grouped by site. Migration v23 adds the `position` column; existing cards keep their order.
+- A goal can have a target, such as 10 per week, 3 per day or 100 per month. The goal shows a bar toward the target, scaled to the period on screen: 10 per week is 43 over 30 days. Set it with Set target on the goal. Migration v24 adds the `target` and `target_period` columns.
 
 ### Changed
 
+- Goals are tiles like the numbers at the top: the visitors who converted, their share of all visitors, the change against the previous period and a daily sparkline. A goal without hits in the period is dimmed. The API returns `previousConversions`, `series`, `target` and `targetPeriod` for each goal.
 - The dashboard shows the chart right after the numbers, then goals, the summary, pages and sources. Saved cards come after pages and sources, so many cards no longer push the chart down the page.
 - The 60-second refresh replaces only the parts of the dashboard whose content changed. Everything else stays as it is: an open drill-down, the chosen tab, the chart's scroll position and whatever is under the pointer. Before, it redrew the whole page, so content jumped and a click could land on another card. The refresh also waits while the tab is hidden or you used the page in the last 10 seconds, and a refresh that fails keeps the current view instead of showing an error.
 - Removing a saved card or a goal shows an Undo button for six seconds before the removal is saved. Leaving the page in that time saves it right away.
