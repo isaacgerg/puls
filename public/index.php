@@ -1439,10 +1439,12 @@ function get_api_data(array $config, array $user): string
     // Site overview (only when viewing all sites)
     $siteOverview = [];
     if (!$site && !$path && !$channel) {
+        // The join has two site columns, so a user's site restriction names p.site
+        $joinSiteFilter = preg_replace('/^AND site\b/', 'AND p.site', $siteFilter);
         $stmt = $db->prepare("SELECT p.site, COUNT(*) as views, COUNT(DISTINCT p.visitor_hash) as visitors, f.first_seen
             FROM pageviews p
             LEFT JOIN (SELECT site, MIN(created_at) as first_seen FROM pageviews GROUP BY site) f ON f.site = p.site
-            WHERE p.{$dateFilter} {$siteFilter}
+            WHERE p.{$dateFilter} {$joinSiteFilter}
             GROUP BY p.site ORDER BY views DESC");
         $stmt->execute(array_merge($dateParams, $siteParams));
         $currentSites = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -1450,7 +1452,7 @@ function get_api_data(array $config, array $user): string
         $stmt = $db->prepare("SELECT site, COUNT(*) as views
             FROM pageviews WHERE created_at >= ? AND created_at < ? {$siteFilter}
             GROUP BY site");
-        $stmt->execute(array_merge([$prevSince, $since], $siteParams, $siteParams));
+        $stmt->execute(array_merge([$prevSince, $since], $siteParams));
         $prevMap = [];
         foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
             $prevMap[$row['site']] = (int) $row['views'];
@@ -1532,9 +1534,10 @@ function get_api_data(array $config, array $user): string
         if ($goalSite) {
             $stmt->execute([$goalSite]);
         } else {
-            // Across sites a goal has a single target only when one site has that goal
-            // (the dashboard of a hub with one site asks without a site)
-            $stmt = $db->query("SELECT path, label, type, CASE WHEN COUNT(*) = 1 THEN MAX(target) END AS target, CASE WHEN COUNT(*) = 1 THEN MAX(target_period) END AS target_period FROM goals GROUP BY path, label, type ORDER BY MIN(created_at)");
+            // Across the user's sites a goal has a single target only when one site has
+            // that goal (the dashboard of a hub with one site asks without a site)
+            $stmt = $db->prepare("SELECT path, label, type, CASE WHEN COUNT(*) = 1 THEN MAX(target) END AS target, CASE WHEN COUNT(*) = 1 THEN MAX(target_period) END AS target_period FROM goals WHERE 1 {$siteFilter} GROUP BY path, label, type ORDER BY MIN(created_at)");
+            $stmt->execute($siteParams);
         }
         $goalRows = $stmt->fetchAll(PDO::FETCH_ASSOC);
         $totalVisitors = (int) ($totals['visitors'] ?? 0);
