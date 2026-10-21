@@ -1004,13 +1004,44 @@ test('saved breakdowns carry their count, the previous count and a daily series'
     }
 });
 
-test('breakdown add and remove require auth', function () {
+test('breakdown add, remove and order require auth', function () {
     $opts = [
         'header' => "Content-Type: application/json",
-        'content' => json_encode(['site' => 'test', 'label' => 'x', 'event' => 'e', 'group' => 'k']),
+        'content' => json_encode(['site' => 'test', 'label' => 'x', 'event' => 'e', 'group' => 'k', 'ids' => [1]]),
     ];
     expect(http('POST', '/?breakdown_add', $opts)['status'])->toBe(401)
-        ->and(http('POST', '/?breakdown_remove', $opts)['status'])->toBe(401);
+        ->and(http('POST', '/?breakdown_remove', $opts)['status'])->toBe(401)
+        ->and(http('POST', '/?breakdown_order', $opts)['status'])->toBe(401);
+});
+
+test('saved cards keep the order set for their site, and a new card goes last', function () {
+    $cookie = restrictedSession();
+    $post = fn (string $endpoint, array $body) => http('POST', $endpoint, [
+        'header' => "Content-Type: application/json\r\n{$cookie}",
+        'content' => json_encode($body),
+    ], 8090);
+    $prefix = 'order_' . uniqid() . '_';
+    $db = getTestDb();
+    $id = fn (string $n) => (int) $db->query("SELECT id FROM breakdowns WHERE event_name = '{$prefix}{$n}'")->fetchColumn();
+    $order = function () use ($prefix) {
+        $data = json_decode(http('GET', '/?api&days=1&share=' . createTestShareToken('test'))['body'], true);
+        $mine = array_filter($data['breakdowns'], fn ($b) => str_starts_with($b['event'], $prefix));
+        return array_values(array_map(fn ($b) => substr($b['event'], -1), $mine));
+    };
+    foreach (['a', 'b', 'c'] as $n) $post('/?breakdown_add', ['site' => 'test', 'event' => $prefix . $n, 'group' => 'k']);
+    // A card on another site, whose id in the list must not move it
+    $db->prepare("INSERT INTO breakdowns (site, label, event_name, group_key, created_at) VALUES ('other', '', ?, 'k', ?)")->execute([$prefix . 'x', date('Y-m-d H:i:s')]);
+
+    try {
+        expect($order())->toBe(['a', 'b', 'c']);
+        expect($post('/?breakdown_order', ['site' => 'test', 'ids' => [$id('c'), $id('x'), $id('a'), $id('b')]])['status'])->toBe(200)
+            ->and($order())->toBe(['c', 'a', 'b'])
+            ->and((int) $db->query("SELECT position FROM breakdowns WHERE event_name = '{$prefix}x'")->fetchColumn())->toBe(0);
+        $post('/?breakdown_add', ['site' => 'test', 'event' => $prefix . 'd', 'group' => 'k']);
+        expect($order())->toBe(['c', 'a', 'b', 'd']);
+    } finally {
+        $db->prepare('DELETE FROM breakdowns WHERE event_name LIKE ?')->execute([$prefix . '%']);
+    }
 });
 
 /**
@@ -1065,6 +1096,11 @@ test('breakdown endpoints are limited to the user\'s sites', function () {
     $status = http('POST', '/?breakdown_add', [
         'header' => "Content-Type: application/json\r\n{$cookie}",
         'content' => json_encode(['site' => 'not-my-site', 'event' => 'e', 'group' => 'k']),
+    ], 8090)['status'];
+    expect($status)->toBe(403);
+    $status = http('POST', '/?breakdown_order', [
+        'header' => "Content-Type: application/json\r\n{$cookie}",
+        'content' => json_encode(['site' => 'not-my-site', 'ids' => [1]]),
     ], 8090)['status'];
     expect($status)->toBe(403);
 });

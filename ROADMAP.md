@@ -227,7 +227,7 @@ From a site with 4 goals and 9 saved cards: the page got long, the chart ended u
 **Saved cards**
 - [x] **Top 5 and Show all (n)** - expands in place (up to 50 rows, then Details); cards side by side share one height
 - [x] **Card header at a glance** - events in the period, change vs the previous period (neutral arrow: more can be good or bad) and a daily sparkline. One extra query per card covers both periods
-- [ ] **Reorder cards** - drag or arrow buttons; the order is stored per site on the server (position column, migration, endpoint), so shared links follow it
+- [x] **Reorder cards** - drag the grip (Pointer Events, mouse and touch) or arrow keys on it; the order is stored per site on the server (position column, migration v23, `?breakdown_order`), so shared links follow it
 
 **Goals**
 - [ ] **Goals as KPI tiles** - conversions large, rate, trend arrow vs the previous period, sparkline; goals without hits dimmed instead of "No hits yet"

@@ -82,6 +82,8 @@ async function main() {
   execFileSync('php', ['-r', `
     $db = new PDO('sqlite:' . $argv[1]);
     $db->exec("INSERT INTO breakdowns (site, label, event_name, group_key, created_at) VALUES ('demo.example.com', 'Smoke card', 'cta_click', 'location', datetime('now'))");
+    // A second card, so the logged-in view can arrange them
+    $db->exec("INSERT INTO breakdowns (site, label, event_name, group_key, created_at) VALUES ('demo.example.com', 'Versions', 'cta_click', '@version', datetime('now'))");
     // More than five values, so the card offers Show all
     $more = $db->prepare("INSERT INTO events (site, event_name, page_path, event_data, visitor_hash, created_at) VALUES ('demo.example.com', 'cta_click', '/', ?, ?, datetime('now'))");
     for ($i = 0; $i < 6; $i++) $more->execute([json_encode(['location' => 'extra' . $i]), 'extra-' . $i]);
@@ -222,6 +224,7 @@ async function main() {
     expect(notes.some((n) => n.textContent === 'Say "hi" <b>bold</b>') && !q('#chart-card .chart-note b'), 'annotation label is escaped');
     expect(q('#chart-card .chart-note.stacked') && q('#chart-card .chart-scroll.stacked-marks'), 'annotation and release on one day stack');
     expect(!q('.note-toggle'), 'no + Note button on a shared dashboard');
+    expect(!q('.breakdown-grip'), 'no card grip on a shared dashboard');
 
     // Accessibility: tabs pattern, dialog focus handling
     const tablist = q('.card-tabs[role="tablist"]');
@@ -354,12 +357,38 @@ async function main() {
     await waitFor(() => [...document.querySelectorAll('.goal-row')].some((r) => r.textContent.includes('pwa_install') && r.textContent.includes('No hits yet')), 'unseen event goal shows No hits yet', 8000);
     if (q('.menu-close').getAttribute('aria-label') !== 'Close settings') fails.push('settings close button is labelled');
 
+    // Arranging saved cards: arrow keys on the grip, then dragging it back; the order is saved
+    const titles = () => [...document.querySelectorAll('.breakdown-card .card-title')].map((t) => t.textContent);
+    const savedTitles = async () => (await (await fetch('/?api&days=7&site=demo.example.com')).json()).breakdowns.map((b) => b.label);
+    const waitSaved = async (want) => {
+      for (let t = 0; t < 30; t++) { if ((await savedTitles()).join() === want.join()) return true; await sleep(100); }
+      return false;
+    };
+    const start = titles();
+    const grip = q('.breakdown-card .breakdown-grip');
+    if (!grip || start.length < 2) { fails.push('a grip on each saved card'); return fails; }
+    grip.focus();
+    grip.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+    const moved = [start[1], start[0], ...start.slice(2)];
+    if (titles().join() !== moved.join() || document.activeElement !== grip) fails.push('an arrow key moves the card and keeps focus on its grip');
+    if (!await waitSaved(moved)) fails.push('the new card order is saved');
+    const dragGrip = [...document.querySelectorAll('.breakdown-card')].find((c) => c.querySelector('.card-title').textContent === start[0]).querySelector('.breakdown-grip');
+    const target = [...document.querySelectorAll('.breakdown-card')].find((c) => c.querySelector('.card-title').textContent === start[1]);
+    target.scrollIntoView({ block: 'center' });
+    const box = target.getBoundingClientRect(), from = dragGrip.getBoundingClientRect();
+    dragGrip.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0, clientX: from.x + 5, clientY: from.y + 5 }));
+    document.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: box.x + box.width / 2, clientY: box.y + box.height / 2 }));
+    document.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
+    if (titles().join() !== start.join()) fails.push('dragging the grip onto another card moves it there');
+    if (!await waitSaved(start)) fails.push('the dragged order is saved');
+
     // Removing a card or goal waits behind an Undo toast; leaving the page sends it
     const toast = q('#toast');
+    const cardCount = document.querySelectorAll('.breakdown-card').length;
     q('.breakdown-card .goal-remove').click();
-    if (q('.breakdown-card') || toast.hidden || !/Card removed/.test(toast.textContent)) fails.push('removing a card hides it and shows the Undo toast');
+    if (document.querySelectorAll('.breakdown-card').length !== cardCount - 1 || toast.hidden || !/Card removed/.test(toast.textContent)) fails.push('removing a card hides it and shows the Undo toast');
     q('#toast-undo').click();
-    if (!q('.breakdown-card') || !toast.hidden) fails.push('Undo brings the card back');
+    if (document.querySelectorAll('.breakdown-card').length !== cardCount || !toast.hidden) fails.push('Undo brings the card back');
     const goalCount = document.querySelectorAll('.goal-row').length;
     q('.goal-row .goal-remove').click();
     if (document.querySelectorAll('.goal-row').length !== goalCount - 1 || !/Goal removed/.test(toast.textContent)) fails.push('removing a goal hides it behind the Undo toast');
@@ -370,7 +399,7 @@ async function main() {
     let removed = false;
     for (let t = 0; t < 30 && !removed; t++) {
       await sleep(100);
-      removed = !(await (await fetch('/?api&days=7&site=demo.example.com')).json()).breakdowns.length;
+      removed = (await savedTitles()).length === cardCount - 1;
     }
     if (!removed) fails.push('a waiting removal is sent when the page is left');
 
@@ -446,7 +475,7 @@ async function main() {
     failures.forEach((f) => console.error('  - ' + f));
     process.exitCode = 1;
   } else {
-    console.log('Dashboard smoke test passed: load, section order, islands kept across a refresh, release markers, breakdown card (count, sparkline, Show all) and its details, undo for card and goal removal, hostile names render as text, entry page bounce, annotations (shared view, add, relabel, remove), keyboard drill-down, group by version, funnel incl. unseen event, compare, 90 days, light theme, logged-in goal for an unseen event, tabs pattern, dialog focus trap, status announcements. No JS errors.');
+    console.log('Dashboard smoke test passed: load, section order, islands kept across a refresh, release markers, breakdown card (count, sparkline, Show all) and its details, arranging cards (keys, drag), undo for card and goal removal, hostile names render as text, entry page bounce, annotations (shared view, add, relabel, remove), keyboard drill-down, group by version, funnel incl. unseen event, compare, 90 days, light theme, logged-in goal for an unseen event, tabs pattern, dialog focus trap, status announcements. No JS errors.');
   }
 }
 

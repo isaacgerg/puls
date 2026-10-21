@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Saved cards can be put in any order. Drag a card by its grip, with the mouse or a finger, or focus the grip and use the arrow keys. The order is saved per site, so everyone with access and shared links see the same order, and a new card goes last. In the all-sites view, cards are grouped by site. Migration v23 adds the `position` column; existing cards keep their order.
+
 ### Changed
 
 - The dashboard shows the chart right after the numbers, then goals, the summary, pages and sources. Saved cards come after pages and sources, so many cards no longer push the chart down the page.
