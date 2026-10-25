@@ -1892,7 +1892,7 @@
           '<div class="card-tab' + (chartMode === 'views' ? ' active' : '') + '" data-chart="views" onclick="switchChartMode(this)">Pageviews</div>' +
           '<div class="card-tab' + (chartMode === 'visitors' ? ' active' : '') + '" data-chart="visitors" onclick="switchChartMode(this)">Visitors</div>' +
         '</div>' +
-        '<span class="card-subtitle">' + siteName + ' — last ' + currentDays + ' days' +
+        '<span class="card-subtitle">' + esc(siteName) + ' — last ' + currentDays + ' days' +
           (hasCompare ? '<button class="chart-compare-toggle' + (compareMode ? ' active' : '') + '" onclick="toggleCompareMode(this)">Compare</button>' : '') +
           (noteSite() ? '<button class="chart-compare-toggle note-toggle" aria-expanded="false" aria-controls="note-form" onclick="toggleNoteForm()">+ Note</button>' : '') +
         '</span>' +

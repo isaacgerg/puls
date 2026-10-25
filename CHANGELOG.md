@@ -11,9 +11,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 - Excluded IPs in Settings. The dashboard lists a site's excluded addresses and ranges, with those for all sites, and shows your own address as Puls sees it, with a button to exclude it. Add an address or range with an optional label, or remove one. Only a user with access to every site can change the all-sites rows. Endpoints: `GET /?excluded&site=x`, `POST /?exclude_add`, `POST /?exclude_remove`. Rows are stored as `exclude:add` stores them, so the CLI and the dashboard share one list.
 
+## [1.26.1] - 2026-10-25
+
 ### Changed
 
 - The summary row (best day, peak hour, top page, top source) comes before the goals, so the Goals heading no longer seems to cover it.
+
+### Security
+
+- A site name could run script in the dashboard. Anyone can post pageviews with any site name (`ALLOWED_ORIGINS` checks the `Origin` header, which only browsers are held to), and the chart showed the chosen site's name without escaping it. A name like `<img src=x onerror=...>` ran in the session of a logged-in user who picked that site in the site menu. The chart now escapes the name, and new site names are stored without angle brackets, quotes, backticks, backslashes and control characters. Names already stored are shown as text. A site that sends one of these characters in `data-site` is stored under the name without it from now on.
+- The login lockout counted failed attempts in the session, so a client that dropped its session cookie could keep guessing passwords. Failed logins are now counted per IP address in the audit log: `MAX_LOGIN_ATTEMPTS` failures within `LOCKOUT_MINUTES` lock that address out, and a successful login from it starts the count over. Behind a reverse proxy, set `TRUSTED_PROXIES`: otherwise every client has the proxy's address, and one person's failed logins lock out everyone.
 
 ## [1.26.0] - 2026-10-21
 
@@ -505,6 +512,7 @@ First public release.
 - GitHub Actions on PHP 8.3 / 8.4 / 8.5
 - Pre-push hook — tests run before every push
 
+[1.26.1]: https://github.com/webready-se/puls/releases/tag/v1.26.1
 [1.26.0]: https://github.com/webready-se/puls/releases/tag/v1.26.0
 [1.25.0]: https://github.com/webready-se/puls/releases/tag/v1.25.0
 [1.24.0]: https://github.com/webready-se/puls/releases/tag/v1.24.0

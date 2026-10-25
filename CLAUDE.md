@@ -57,7 +57,7 @@ users.json              — User credentials (bcrypt hashed, auto-created by CLI
 data/puls.sqlite        — SQLite database (auto-created, gitignored)
 composer.json           — Platform requirements (PHP 8.3+, pdo_sqlite) + dev dependencies (Pest)
 phpunit.xml             — Test configuration (Pest)
-tests/                  — Pest test suite (260 tests, unit + feature)
+tests/                  — Pest test suite (272 tests, unit + feature)
 docs/integrations.md    - Tracking setup: script attributes, events, keeping personal data out of URLs, excluding own visits, reverse proxies
 docs/api.md             - Read API reference (JSON/CSV, share tokens)
 docs/install.md         - Install and run: release download, shared hosting, Nginx, Apache, Forge, Docker, upgrading
@@ -80,7 +80,7 @@ docker-compose.yml      — One-command setup with volume for /app/data
 
 - **No framework** — pure PHP 8.3+, only requires `pdo_sqlite`
 - **SQLite with WAL mode** — good concurrent read performance, single-file database
-- **Session-based auth** — CSRF-protected, brute-force lockout, bcrypt passwords
+- **Session-based auth** — CSRF-protected, brute-force lockout per IP (failed logins counted in `audit_log`), bcrypt passwords
 - **Per-user site access** — users can be restricted to specific sites
 - **Self-contained dashboard** — no build tools, no CDN, works offline after load
 - **Dashboard islands** - `render()` wraps each section in `island(key, html)`, and `patchIslands()` replaces only the islands whose HTML changed since the last render of the same view, so the 60 s refresh leaves the rest of the DOM alone (hover, focus, open drill-downs, tabs, chart scroll). A new section goes through `island()` with a unique key; a list of cards is one `data-island-list` element with a `data-island` key per card
