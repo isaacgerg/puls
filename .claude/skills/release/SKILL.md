@@ -44,6 +44,11 @@ only v1.19.1, a broken fresh install, needed to go out on its own.)
 adds its lines there, under Added / Changed / Fixed / Security. If a PR would
 create a second Unreleased heading, merge into the existing one instead.
 
+Credit people outside the team on their line: `Contributed by @handle (#81).`
+for a pull request, `Reported by @handle (#80).` for an issue. The release notes
+are built from the changelog, so the credit shows there and GitHub notifies them.
+Leave it out for anyone who asks not to be credited (security reporters often do).
+
 ## How to prepare a release
 
 1. **Determine version bump:**
