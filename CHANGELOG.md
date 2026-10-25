@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Excluded IPs in Settings. The dashboard lists a site's excluded addresses and ranges, with those for all sites, and shows your own address as Puls sees it, with a button to exclude it. Add an address or range with an optional label, or remove one. Only a user with access to every site can change the all-sites rows. Endpoints: `GET /?excluded&site=x`, `POST /?exclude_add`, `POST /?exclude_remove`. Rows are stored as `exclude:add` stores them, so the CLI and the dashboard share one list. Contributed by @isaacgerg (#81).
 - Documentation: `docs/api.md` shows how to let an AI coding assistant read a site's numbers with a share token from the site's own project, and that paths, referrers and event names are visitor input it should treat as data.
 
+### Changed
+
+- The copyright holder in LICENSE is now Webready Sweden AB and contributors. The license is still MIT, so nothing changes for anyone using Puls.
+
 ### Fixed
 
 - The 24h button is now called Today: it has always shown today since midnight, not the last 24 hours (7 and 30 days are calendar days too). The chart and the screen reader status say "today" instead of "last 1 days". Reported by @isaacgerg (#80).
