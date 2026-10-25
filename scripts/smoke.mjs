@@ -438,6 +438,19 @@ async function main() {
     q('.note-toggle').click();
     q('.note-form-hint button').click();
     if (!q('#note-form').hidden || !q('#menu-panel').classList.contains('open')) fails.push('note form hint closes the form and opens Settings');
+
+    // Excluded IPs: Settings shows your own address, Exclude it lists it, × counts it again
+    window.openMenu();
+    if (await waitFor(() => q('#excluded-mine code') && q('#excluded-mine button'), 'your own address in Settings')) {
+      const mine = q('#excluded-mine code').textContent;
+      const row = () => [...document.querySelectorAll('#excluded-list .excluded-item')].find((i) => i.getAttribute('data-ip') === mine);
+      q('#excluded-mine button').click();
+      if (await waitFor(() => row() && /is not counted/.test(q('#excluded-mine').textContent), 'own address excluded and listed', 8000)) {
+        row().querySelector('button').click();
+        await waitFor(() => !row() && q('#excluded-mine button'), 'own address counted again', 8000);
+      }
+    }
+    window.closeMenu();
     return fails;
   };
   const result2 = await send('Runtime.evaluate', { expression: `(${loggedIn.toString()})()`, awaitPromise: true, returnByValue: true });
@@ -523,7 +536,7 @@ async function main() {
     failures.forEach((f) => console.error('  - ' + f));
     process.exitCode = 1;
   } else {
-    console.log('Dashboard smoke test passed: load, section order, islands kept across a refresh, release markers, breakdown card (count, sparkline, Show all) and its details, arranging cards (keys, drag), undo for card and goal removal, hostile event, path and site names render as text, entry page bounce, annotations (shared view, add, relabel, remove), keyboard drill-down, group by version, funnel incl. unseen event, compare, 90 days, light theme, logged-in goal for an unseen event (dimmed tile, target bar), tabs pattern, dialog focus trap, status announcements. No JS errors.');
+    console.log('Dashboard smoke test passed: load, section order, islands kept across a refresh, release markers, breakdown card (count, sparkline, Show all) and its details, arranging cards (keys, drag), undo for card and goal removal, hostile event, path and site names render as text, entry page bounce, annotations (shared view, add, relabel, remove), excluding your own address in Settings, keyboard drill-down, group by version, funnel incl. unseen event, compare, 90 days, light theme, logged-in goal for an unseen event (dimmed tile, target bar), tabs pattern, dialog focus trap, status announcements. No JS errors.');
   }
 }
 
