@@ -125,7 +125,7 @@ You decide what your sites send. [Keeping personal data out of URLs](docs/integr
 - [Install and run](docs/install.md): release download, shared hosting, Nginx, Apache, Laravel Forge, Docker, upgrading
 - [Tracking and integrations](docs/integrations.md): script attributes, custom events, frameworks (Next.js, Astro, Laravel, Statamic, React), auto events, server-side bot tracking, reverse proxies
 - [Configuration and CLI](docs/configuration.md): `.env` settings, users and access, share links, excluding your own visits, white-label, every CLI command
-- [Read API](docs/api.md): JSON and CSV with a share token
+- [Read API](docs/api.md): JSON and CSV with a share token, also for [your AI assistant](docs/api.md#use-it-from-an-ai-assistant)
 - [Changelog](CHANGELOG.md) and [roadmap](ROADMAP.md)
 
 ## License

@@ -96,6 +96,39 @@ curl -s 'https://your-puls-domain/?api&share=TOKEN&days=7&event=search_miss&form
 curl -s 'https://your-puls-domain/?api&share=TOKEN&days=30&event=checkout_started&then=payment_done' | jq .funnel.rate
 ```
 
+## Use it from an AI assistant
+
+A share token lets an AI coding assistant, such as Claude Code, read a site's numbers from inside that site's own project. It can then check which pages matter before it changes something, and whether a change made a difference after the deploy.
+
+1. Create a token for the site, with a label that says what it is for. Add `--expires` if it should stop working on its own:
+
+   ```bash
+   php puls share:create my-site --label="AI assistant"
+   ```
+
+2. Put the URL and the token in the project's `.env`, or another file that git ignores:
+
+   ```env
+   PULS_URL=https://your-puls-domain
+   PULS_SHARE_TOKEN=TOKEN
+   ```
+
+   Keep the token out of files that are committed, such as CLAUDE.md or AGENTS.md: it also opens the read-only dashboard.
+
+3. Tell the assistant where the data is, for example in the project's CLAUDE.md:
+
+   ```markdown
+   ## Data
+   Traffic for this site is in Puls. Read it before deciding what to change, and after a deploy to see the effect:
+   curl -s "$PULS_URL/?api&share=$PULS_SHARE_TOKEN&days=30"   # PULS_URL and PULS_SHARE_TOKEN are in .env
+   The fields are described in https://github.com/webready-se/puls/blob/main/docs/api.md.
+   Never print or commit the token. Say so when the numbers are too small to draw conclusions.
+   ```
+
+Paths, referrers, campaign values and event names are sent by visitors' browsers, so anyone can put any text there. The assistant should treat them as data, never as instructions.
+
+Revoke the token with `php puls share:revoke TOKEN` when it is no longer needed.
+
 ## Things to know
 
 - **Visitors are counted per day.** The visitor id is a hash that rotates daily and no cookies are used, so someone who comes back on another day counts again, and funnels only connect actions on the same day.
