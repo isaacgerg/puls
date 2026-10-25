@@ -69,6 +69,10 @@
 - [x] Rate limiting (Nginx) — `limit_req_zone` on collect endpoint (documented in integrations.md)
 - [x] Session rotation — hourly session ID regeneration for authenticated users
 - [x] Audit log — login attempts (success/failed) logged in SQLite with username, IP, timestamp
+- [x] **Site names escaped and cleaned (v1.26.1)** - a site name posted to the public endpoints ran script in the dashboard chart (found through a private report); the chart escapes it and `normalize_site()` strips markup and control characters. Advisory: [GHSA-376p-rq3h-j2vw](https://github.com/webready-se/puls/security/advisories/GHSA-376p-rq3h-j2vw)
+- [x] **Login lockout per IP (v1.26.1)** - failed logins counted in `audit_log` per IP instead of in the session, which a client could drop
+- [x] **Private vulnerability reporting** - enabled on GitHub, as SECURITY.md asks
+- [ ] **Dashboard CSP without `'unsafe-inline'` in `script-src`** - with it, one missed `esc()` runs script (as in v1.26.1). The ~90 inline handlers (`onclick`, `onkeydown`, ...) move to event delegation (`data-action` plus one listener), and the inline `<script>` blocks get a per-request nonce, since PHP already serves dashboard.html. Nonces do not cover inline handlers, so every handler has to go first. `style-src 'unsafe-inline'` can stay. The smoke test should fail on CSP violations
 
 ## Epic 4: Dashboard Improvements
 
