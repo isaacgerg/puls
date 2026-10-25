@@ -444,7 +444,43 @@ async function main() {
   if (result2.exceptionDetails) errors.push(`Logged-in steps threw: ${result2.exceptionDetails.exception?.description}`);
   failures.push(...(result2.result?.value || []));
 
-  // 7. Installed app (PWA) with a custom date range: pull-to-refresh reloads that same range
+  // 7. A hostile site name already in the database renders as text in the chart and the site overview
+  const hostileSite = 'x"><img src=x onerror="window.__xss=1">' + "');window.__xss=2;('";
+  execFileSync('php', ['-r', `
+    $db = new PDO('sqlite:' . $argv[1]);
+    $db->prepare("INSERT INTO pageviews (site, path, visitor_hash, created_at) VALUES (?, '/', 'xss-site', datetime('now'))")->execute([$argv[2]]);
+  `, dbPath, hostileSite]);
+  await send('Runtime.evaluate', { expression: `localStorage.setItem('puls-site', ${JSON.stringify(hostileSite)})` });
+  const wait5 = loaded();
+  await send('Page.navigate', { url: `${base}/` });
+  await wait5;
+  const hostileSiteSteps = async (name) => {
+    const fails = [];
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+    const q = (s) => document.querySelector(s);
+    const waitFor = async (fn, what, ms = 5000) => {
+      for (let t = 0; t < ms; t += 100) { if (fn()) return true; await sleep(100); }
+      fails.push(`timed out waiting for ${what}`);
+      return false;
+    };
+    if (!await waitFor(() => q('#chart-card .card-subtitle'), 'chart for the hostile site')) return fails;
+    if (!q('#chart-card .card-subtitle').textContent.startsWith(name)) fails.push('hostile site name shown as text in the chart subtitle');
+    const select = q('#site-select');
+    select.value = '';
+    select.dispatchEvent(new Event('change'));
+    if (await waitFor(() => q('.site-overview-row'), 'site overview with the hostile site')) {
+      if (![...document.querySelectorAll('.site-overview-name')].some((n) => n.textContent.startsWith(name))) fails.push('hostile site name shown as text in the site overview');
+    }
+    await sleep(300);
+    if (document.querySelector('#app [onerror]')) fails.push('no injected attribute from a hostile site name');
+    if (window.__xss !== undefined) fails.push('no injected script ran from a hostile site name');
+    return fails;
+  };
+  const result4 = await send('Runtime.evaluate', { expression: `(${hostileSiteSteps.toString()})(${JSON.stringify(hostileSite)})`, awaitPromise: true, returnByValue: true });
+  if (result4.exceptionDetails) errors.push(`Hostile site steps threw: ${result4.exceptionDetails.exception?.description}`);
+  failures.push(...(result4.result?.value || []));
+
+  // 8. Installed app (PWA) with a custom date range: pull-to-refresh reloads that same range
   const day = (ago) => new Date(Date.now() - ago * 86400000).toISOString().slice(0, 10);
   const range = { from: day(20), to: day(10) };
   await send('Runtime.evaluate', { expression: `localStorage.setItem('puls-from', '${range.from}'); localStorage.setItem('puls-to', '${range.to}')` });
@@ -487,7 +523,7 @@ async function main() {
     failures.forEach((f) => console.error('  - ' + f));
     process.exitCode = 1;
   } else {
-    console.log('Dashboard smoke test passed: load, section order, islands kept across a refresh, release markers, breakdown card (count, sparkline, Show all) and its details, arranging cards (keys, drag), undo for card and goal removal, hostile names render as text, entry page bounce, annotations (shared view, add, relabel, remove), keyboard drill-down, group by version, funnel incl. unseen event, compare, 90 days, light theme, logged-in goal for an unseen event (dimmed tile, target bar), tabs pattern, dialog focus trap, status announcements. No JS errors.');
+    console.log('Dashboard smoke test passed: load, section order, islands kept across a refresh, release markers, breakdown card (count, sparkline, Show all) and its details, arranging cards (keys, drag), undo for card and goal removal, hostile event, path and site names render as text, entry page bounce, annotations (shared view, add, relabel, remove), keyboard drill-down, group by version, funnel incl. unseen event, compare, 90 days, light theme, logged-in goal for an unseen event (dimmed tile, target bar), tabs pattern, dialog focus trap, status announcements. No JS errors.');
   }
 }
 
