@@ -11,6 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 - The summary row (best day, peak hour, top page, top source) comes before the goals, so the Goals heading no longer seems to cover it.
 
+### Security
+
+- A site name could run script in the dashboard. Anyone can post pageviews with any site name (`ALLOWED_ORIGINS` checks the `Origin` header, which only browsers are held to), and the chart showed the chosen site's name without escaping it. A name like `<img src=x onerror=...>` ran in the session of a logged-in user who picked that site in the site menu. The chart now escapes the name, and new site names are stored without angle brackets, quotes, backticks, backslashes and control characters. Names already stored are shown as text. A site that sends one of these characters in `data-site` is stored under the name without it from now on.
+- The login lockout counted failed attempts in the session, so a client that dropped its session cookie could keep guessing passwords. Failed logins are now counted per IP address in the audit log: `MAX_LOGIN_ATTEMPTS` failures within `LOCKOUT_MINUTES` lock that address out, and a successful login from it starts the count over. Behind a reverse proxy, set `TRUSTED_PROXIES`: otherwise every client has the proxy's address, and one person's failed logins lock out everyone.
+
 ## [1.26.0] - 2026-10-21
 
 ### Added

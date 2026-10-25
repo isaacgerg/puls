@@ -92,6 +92,20 @@ test('collect endpoint accepts POST', function () {
     expect($r['status'])->toBe(204);
 });
 
+test('collect strips markup characters from the site name', function () {
+    $db = getTestDb();
+    try {
+        http('POST', '/?collect', [
+            'header' => "Content-Type: application/json\r\nUser-Agent: Mozilla/5.0 Chrome/120.0",
+            'content' => json_encode(['u' => '/', 'site' => '<img src=x onerror=alert(1)>']),
+        ]);
+        $sites = $db->query("SELECT DISTINCT site FROM pageviews WHERE site LIKE '%onerror%'")->fetchAll(PDO::FETCH_COLUMN);
+        expect($sites)->toBe(['img src=x onerror=alert(1)']);
+    } finally {
+        $db->exec("DELETE FROM pageviews WHERE site LIKE '%onerror%'");
+    }
+});
+
 test('collect endpoint stores utm term and content', function () {
     $r = http('POST', '/?collect', [
         'header' => "Content-Type: application/json\r\nUser-Agent: Mozilla/5.0 Chrome/120.0",
@@ -1354,16 +1368,20 @@ test('login page redirects to the dashboard when already logged in', function ()
 
 /**
  * Post a login with a wrong password in a fresh session, $times times in a row.
+ * With $dropCookie every attempt starts its own session, like a client that discards cookies.
  * Returns the response to the last attempt.
  */
-function failedLogins(int $times): array
+function failedLogins(int $times, bool $dropCookie = false): array
 {
     restrictedSession(); // starts the server with a known user
-    $r = http('GET', '/?csrf', [], 8090);
-    preg_match('/Set-Cookie:\s*([^=]+=[^;]+)/i', implode("\n", $r['headers']), $m);
-    $cookie = $m[1];
-    $token = json_decode($r['body'], true)['token'];
+    $session = function (): array {
+        $r = http('GET', '/?csrf', [], 8090);
+        preg_match('/Set-Cookie:\s*([^=]+=[^;]+)/i', implode("\n", $r['headers']), $m);
+        return [$m[1], json_decode($r['body'], true)['token']];
+    };
+    [$cookie, $token] = $session();
     for ($i = 0; $i < $times; $i++) {
+        if ($dropCookie && $i > 0) [$cookie, $token] = $session();
         $r = http('POST', '/?login', [
             'header' => "Content-Type: application/x-www-form-urlencoded\r\nCookie: {$cookie}",
             'content' => http_build_query(['_login' => 1, '_token' => $token, 'username' => 'limited', 'password' => 'wrong']),
@@ -1380,9 +1398,27 @@ test('failed login shows the login form with an error', function () {
         ->and($r['body'])->toContain('Invalid username or password');
 });
 
+/** Failed logins count per IP, so the next test from the same client starts unlocked. */
+function clearFailedLogins(): void
+{
+    getTestDb()->exec("DELETE FROM audit_log WHERE action = 'login_failed'");
+}
+
 test('lockout starts after max_login_attempts failed logins, not before', function () {
-    expect(failedLogins(5)['body'])->toContain('Invalid username or password')
-        ->and(failedLogins(6)['body'])->toContain('Too many failed attempts');
+    try {
+        expect(failedLogins(5)['body'])->toContain('Invalid username or password')
+            ->and(failedLogins(6)['body'])->toContain('Too many failed attempts');
+    } finally {
+        clearFailedLogins();
+    }
+});
+
+test('lockout holds when the client drops its session cookie', function () {
+    try {
+        expect(failedLogins(6, true)['body'])->toContain('Too many failed attempts');
+    } finally {
+        clearFailedLogins();
+    }
 });
 
 // =====================================================================
