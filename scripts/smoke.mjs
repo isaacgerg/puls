@@ -317,6 +317,16 @@ async function main() {
       await waitFor(() => q('.breakdown-card .event-detail') && q('.breakdown-card .event-detail')._state && q('.breakdown-card .event-detail')._state.data.days === 30, 'card drill-down kept across period change', 8000);
     }
 
+    // The 1-day period starts at midnight, so it reads as today, not the last 24 hours
+    const todayBtn = q('.period-btn[data-days="1"]');
+    expect(todayBtn.textContent === 'Today', 'the 1-day period button reads Today');
+    q('#sr-status').textContent = '';
+    todayBtn.click();
+    if (await waitFor(() => /, today:/.test(q('#sr-status').textContent), 'screen reader status says today')) {
+      const sub = q('#chart-card .card-subtitle')?.textContent || '';
+      expect(/today/.test(sub) && !/last 1 days/.test(sub), 'chart subtitle says today');
+    }
+
     // Light theme renders too
     document.documentElement.setAttribute('data-theme', 'light');
     expect(getComputedStyle(document.body).backgroundColor !== '', 'light theme applies');
@@ -536,7 +546,7 @@ async function main() {
     failures.forEach((f) => console.error('  - ' + f));
     process.exitCode = 1;
   } else {
-    console.log('Dashboard smoke test passed: load, section order, islands kept across a refresh, release markers, breakdown card (count, sparkline, Show all) and its details, arranging cards (keys, drag), undo for card and goal removal, hostile event, path and site names render as text, entry page bounce, annotations (shared view, add, relabel, remove), excluding your own address in Settings, keyboard drill-down, group by version, funnel incl. unseen event, compare, 90 days, light theme, logged-in goal for an unseen event (dimmed tile, target bar), tabs pattern, dialog focus trap, status announcements. No JS errors.');
+    console.log('Dashboard smoke test passed: load, section order, islands kept across a refresh, release markers, breakdown card (count, sparkline, Show all) and its details, arranging cards (keys, drag), undo for card and goal removal, hostile event, path and site names render as text, entry page bounce, annotations (shared view, add, relabel, remove), excluding your own address in Settings, keyboard drill-down, group by version, funnel incl. unseen event, compare, 90 days, Today period wording, light theme, logged-in goal for an unseen event (dimmed tile, target bar), tabs pattern, dialog focus trap, status announcements. No JS errors.');
   }
 }
 
