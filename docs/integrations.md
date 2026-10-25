@@ -405,9 +405,9 @@ For server-rendered frameworks (Astro, Laravel, Statamic), you can inject the cu
 
 This is about what sits in front of **Puls**, not the tracked site. The tracking script sends pageviews and events from the visitor's browser straight to Puls, so a proxy in front of your site does not matter.
 
-Puls uses the visitor's IP address for the daily visitor hash (unique visitors, sessions, bounce rate, funnels) and for [IP exclusion](#by-ip-address). By default it takes the address the connection comes from. That is right when visitors connect to Puls directly, as with Nginx and PHP-FPM on the same server (Laravel Forge, most VPS setups) or the Docker image with its port published directly.
+Puls uses the visitor's IP address for the daily visitor hash (unique visitors, sessions, bounce rate, funnels), for [IP exclusion](#by-ip-address) and for the login lockout. By default it takes the address the connection comes from. That is right when visitors connect to Puls directly, as with Nginx and PHP-FPM on the same server (Laravel Forge, most VPS setups) or the Docker image with its port published directly.
 
-If something forwards requests to Puls instead, such as Nginx, Caddy or Traefik in front of the Docker container, a load balancer, or Cloudflare with the proxy enabled, every request comes from the proxy. Puls then sees one address for everyone: unique visitors are counted by browser only, and IP exclusion cannot match. List the proxies in `.env`:
+If something forwards requests to Puls instead, such as Nginx, Caddy or Traefik in front of the Docker container, a load balancer, or Cloudflare with the proxy enabled, every request comes from the proxy. Puls then sees one address for everyone: unique visitors are counted by browser only, IP exclusion cannot match, and one person's failed logins lock out everyone. List the proxies in `.env`:
 
 ```env
 TRUSTED_PROXIES=172.16.0.0/12          # e.g. the Docker network your proxy runs on
@@ -488,7 +488,7 @@ location = /index.php {
 }
 ```
 
-For login protection, Puls already has built-in brute-force lockout (configurable via `MAX_LOGIN_ATTEMPTS` and `LOCKOUT_MINUTES` in `.env`).
+For login protection, Puls already has built-in brute-force lockout per IP address (configurable via `MAX_LOGIN_ATTEMPTS` and `LOCKOUT_MINUTES` in `.env`).
 
 ## Content Security Policy (CSP)
 

@@ -18,8 +18,8 @@ ALLOWED_ORIGINS=            # Allowed domains (comma-separated, includes subdoma
 DB_PATH=data/puls.sqlite    # Database path (relative to project root)
 USERS_FILE=users.json       # User credentials path (relative to project root)
 SESSION_LIFETIME=2592000    # 30 days
-MAX_LOGIN_ATTEMPTS=5
-LOCKOUT_MINUTES=15
+MAX_LOGIN_ATTEMPTS=5        # Failed logins from one IP before it is locked out
+LOCKOUT_MINUTES=15          # Window for those failures, and how long the lockout lasts
 IGNORED_BOTS=               # Bot UA patterns to exclude (comma-separated)
 TRUSTED_PROXIES=            # Proxies in front of Puls (IPs/CIDR), see integrations.md
 EVENTS_RETENTION_DAYS=400   # Days to keep custom events, 0 = forever

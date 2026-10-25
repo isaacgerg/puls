@@ -337,7 +337,7 @@ function handle_login(array $config): void
         $password = $_POST['password'] ?? '';
 
         // Check brute-force lockout
-        if (is_locked_out($config)) {
+        if (is_locked_out($config, client_ip($_SERVER, $config['trusted_proxies'] ?? []))) {
             show_login($config, "Too many failed attempts. Wait {$config['lockout_minutes']} minutes.");
             return;
         }
@@ -350,7 +350,6 @@ function handle_login(array $config): void
             unset($_SESSION['csrf_token']);
             $_SESSION['authenticated'] = true;
             $_SESSION['username'] = $username;
-            $_SESSION['login_attempts'] = 0;
             $_SESSION['last_rotated'] = time();
             audit_log($config, $username, 'login_success');
 
@@ -358,9 +357,7 @@ function handle_login(array $config): void
             respond('', 302, null, ['Location' => '/']);
         }
 
-        // Failed login
-        $_SESSION['login_attempts'] = ($_SESSION['login_attempts'] ?? 0) + 1;
-        $_SESSION['last_attempt'] = time();
+        // Failed login (the audit log entry is what the lockout counts)
         audit_log($config, $username, 'login_failed');
         show_login($config, 'Invalid username or password.');
         return;
@@ -418,19 +415,19 @@ function get_current_user_data(array $config): array
     return $users[$username] ?? ['sites' => []];
 }
 
-function is_locked_out(array $config): bool
+/**
+ * Locked out after max_login_attempts failed logins from this IP in the last
+ * lockout_minutes, counted since its last successful login. Counted in the audit
+ * log rather than the session, so a client that drops its cookie is still counted.
+ */
+function is_locked_out(array $config, string $ip): bool
 {
-    $attempts = $_SESSION['login_attempts'] ?? 0;
-    $lastAttempt = $_SESSION['last_attempt'] ?? 0;
-
-    if ($attempts >= $config['max_login_attempts']) {
-        if (time() - $lastAttempt < $config['lockout_minutes'] * 60) {
-            return true;
-        }
-        // Lockout expired
-        $_SESSION['login_attempts'] = 0;
-    }
-    return false;
+    $db = get_db($config['db_path']);
+    $stmt = $db->prepare("SELECT COUNT(*) FROM audit_log
+        WHERE ip = ? AND action = 'login_failed' AND created_at >= ?
+        AND id > COALESCE((SELECT MAX(id) FROM audit_log WHERE ip = ? AND action = 'login_success'), 0)");
+    $stmt->execute([$ip, date('Y-m-d H:i:s', time() - $config['lockout_minutes'] * 60), $ip]);
+    return (int) $stmt->fetchColumn() >= $config['max_login_attempts'];
 }
 
 function load_users(string $file): array
