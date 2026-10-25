@@ -92,6 +92,20 @@ test('collect endpoint accepts POST', function () {
     expect($r['status'])->toBe(204);
 });
 
+test('collect strips markup characters from the site name', function () {
+    $db = getTestDb();
+    try {
+        http('POST', '/?collect', [
+            'header' => "Content-Type: application/json\r\nUser-Agent: Mozilla/5.0 Chrome/120.0",
+            'content' => json_encode(['u' => '/', 'site' => '<img src=x onerror=alert(1)>']),
+        ]);
+        $sites = $db->query("SELECT DISTINCT site FROM pageviews WHERE site LIKE '%onerror%'")->fetchAll(PDO::FETCH_COLUMN);
+        expect($sites)->toBe(['img src=x onerror=alert(1)']);
+    } finally {
+        $db->exec("DELETE FROM pageviews WHERE site LIKE '%onerror%'");
+    }
+});
+
 test('collect endpoint stores utm term and content', function () {
     $r = http('POST', '/?collect', [
         'header' => "Content-Type: application/json\r\nUser-Agent: Mozilla/5.0 Chrome/120.0",

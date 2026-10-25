@@ -1995,7 +1995,8 @@ function normalize_site(string $site): string
         $decoded = idn_to_utf8($site, 0, INTL_IDNA_VARIANT_UTS46);
         if ($decoded !== false) $site = $decoded;
     }
-    return $site;
+    // Anyone can post a site name: drop markup and control characters, which no real name has
+    return preg_replace('/[\x00-\x1f\x7f<>"\'`\\\\]/', '', $site);
 }
 
 function normalize_path(string $path, array $extraStrip = []): string

@@ -17,7 +17,7 @@ Puls automatically tracks:
 
 | Attribute | What it does |
 |-----------|--------------|
-| `data-site="name"` | Site name. Separates data in a multi-site setup. Defaults to the hostname |
+| `data-site="name"` | Site name. Separates data in a multi-site setup. Defaults to the hostname. Angle brackets, quotes, backticks, backslashes and control characters are removed |
 | `data-outbound` | Tracks clicks on external links as `outbound_click` ([more](#outbound-link-tracking)) |
 | `data-auto-events` | Tracks phone and email clicks, downloads and form submissions ([more](#auto-event-tracking)) |
 | `data-version="2.6.0"` | App version on every pageview and event, shown as release markers ([more](#app-version)) |
