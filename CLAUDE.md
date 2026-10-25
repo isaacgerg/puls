@@ -181,6 +181,10 @@ On session start:
 2. Read `ROADMAP.md` to understand current progress
 3. Check for unreleased work: `git log $(git describe --tags --abbrev=0)..HEAD --oneline`
    — suggest a release only per the release policy below (batched, not per PR)
+4. Check what others have sent: open issues (`gh issue list`), pull requests from others
+   (`gh pr list --search '-author:@me'`) and private vulnerability reports
+   (`gh api 'repos/webready-se/puls/security-advisories?state=triage'`). Mention each one
+   and suggest a reply; a vulnerability report comes first (SECURITY.md promises a reply within 48 hours)
 
 Merging to main deploys puls.wrlabs.se (Forge); that alone needs no release.
 Tagged releases are for self-hosters and are batched, see `.claude/skills/release/`:
