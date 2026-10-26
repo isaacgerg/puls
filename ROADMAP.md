@@ -72,6 +72,9 @@
 - [x] **Site names escaped and cleaned (v1.26.1)** - a site name posted to the public endpoints ran script in the dashboard chart (found through a private report); the chart escapes it and `normalize_site()` strips markup and control characters. Advisory: [GHSA-376p-rq3h-j2vw](https://github.com/webready-se/puls/security/advisories/GHSA-376p-rq3h-j2vw)
 - [x] **Login lockout per IP (v1.26.1)** - failed logins counted in `audit_log` per IP instead of in the session, which a client could drop
 - [x] **Private vulnerability reporting** - enabled on GitHub, as SECURITY.md asks
+- [x] **CSV exports defuse spreadsheet formulas (1.27.0)** - visitor-sent values starting with `=`, `+`, `-` or `@` get an apostrophe, in the dashboard export and the event CSV
+- [x] **Read API takes `Authorization: Bearer` (1.27.0)** - keeps the share token out of URLs, server logs and shell history; `&share=` keeps working
+- [x] **Hashed share tokens: considered, declined** - anyone with the database already has the data a token protects; see the design decisions in CLAUDE.md
 - [ ] **Dashboard CSP without `'unsafe-inline'` in `script-src`** - with it, one missed `esc()` runs script (as in v1.26.1). The ~90 inline handlers (`onclick`, `onkeydown`, ...) move to event delegation (`data-action` plus one listener), and the inline `<script>` blocks get a per-request nonce, since PHP already serves dashboard.html. Nonces do not cover inline handlers, so every handler has to go first. `style-src 'unsafe-inline'` can stay. The smoke test should fail on CSP violations
 
 ## Epic 4: Dashboard Improvements
