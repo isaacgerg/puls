@@ -497,8 +497,9 @@ test('api entry pages include bounces that add up to the site bounce rate', func
     $site = 'entry-bounce-' . uniqid();
     $db = getTestDb();
     $stmt = $db->prepare('INSERT INTO pageviews (created_at, site, path, visitor_hash) VALUES (?, ?, ?, ?)');
-    $now = time();
-    $at = fn(int $minutes) => date('Y-m-d H:i:s', $now - 3600 + $minutes * 60);
+    // An hour ago, but never before midnight: days=1 is today, so the rows must not fall on yesterday
+    $start = max(time() - 3600, strtotime('today'));
+    $at = fn(int $minutes) => date('Y-m-d H:i:s', $start + $minutes * 60);
     // Start page: 4 entries, 3 leave after one page
     foreach (['a', 'b', 'c'] as $v) {
         $stmt->execute([$at(0), $site, '/', $v]);
