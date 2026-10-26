@@ -85,7 +85,7 @@ This changes the login page, dashboard header, PWA manifest and favicon. `APP_AC
 All management goes through `php puls`. Every command also works without arguments: pickers and prompts guide you through.
 
 ```bash
-php puls user:add <name>                 # Add user with full access
+php puls user:add [<name>]               # Add user with full access
 php puls user:add <name> --sites=a,b     # Add user restricted to specific sites
 php puls user:edit <name>                # Edit user (sites, password)
 php puls user:remove <name>              # Remove a user

@@ -1280,7 +1280,7 @@ function printHelp(): void
     Puls CLI
 
     Usage:
-      php puls user:add <name> [--sites=a,b]   Add a user
+      php puls user:add [<name>] [--sites=a,b] Add a user
       php puls user:edit [<name>]               Edit user (sites, password)
       php puls user:remove [<name>]             Remove a user
       php puls user:list                       List all users
