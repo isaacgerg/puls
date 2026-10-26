@@ -11,9 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 - The colours follow the Webready open source design kit, shared with Puls's sibling tools. Links, buttons and active tabs use a deeper red (`#BE123C`) that is readable as text: the coral reached a contrast of only 3.1:1 against white. The coral stays for the logo, the bars and the charts, and the logo is a flat tile without a gradient. Secondary text and the green and red for up and down are a little darker for contrast, and filled buttons have dark text in dark mode.
 - White-label: `APP_ACCENT` colours the logo, the bars and the charts, and links and buttons only where it is readable as text, checked for light and dark mode separately.
+- The dashboard and the login page use Figtree, the typeface shared by Puls's sibling tools. It is served by Puls itself (`public/fonts/`, 20 KB), so no request leaves your server, and the CSP allows fonts from it (`font-src 'self'`). The name next to the logo and the big numbers are set a little larger and bolder.
 
 ### Fixed
 
+- The release zip left out the app icons in `public/` (`icon-180.png`, `icon-192.png`, `icon-512.png`), so an install from the zip had no icon on the home screen. The zip now holds all of `public/`.
 - White-label: the bars in the page, event and browser lists, the channel fallback and the chart's gradient stayed coral whatever `APP_ACCENT` said. They follow it now. The login page in dark mode also ignored `APP_ACCENT`.
 
 ## [1.27.0] - 2026-10-26

@@ -130,4 +130,4 @@ You decide what your sites send. [Keeping personal data out of URLs](docs/integr
 
 ## License
 
-MIT. Made by [Webready](https://webready.se) in Sweden.
+MIT. Made by [Webready](https://webready.se) in Sweden. The dashboard uses the Figtree typeface, under the SIL Open Font License (`public/fonts/OFL.txt`).
