@@ -20,7 +20,7 @@
 $config = require __DIR__ . '/../config.php';
 
 // Shown in the dashboard footer. Bump it with the CHANGELOG heading when releasing (tests/Unit/VersionTest.php)
-const PULS_VERSION = '1.27.0';
+const PULS_VERSION = '1.28.0';
 
 // =====================================================================
 // ROUTING
