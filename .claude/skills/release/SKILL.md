@@ -62,6 +62,7 @@ Leave it out for anyone who asks not to be credited (security reporters often do
    - Check there is exactly one `## [Unreleased]` heading
      (`grep -c '^## \[Unreleased\]' CHANGELOG.md` must print 1); merge duplicates first
    - Rename it to `## [x.y.z] — YYYY-MM-DD`
+   - Bump `PULS_VERSION` in `public/index.php` to the same version (it shows in the dashboard footer; `tests/Unit/VersionTest.php` fails until the two match)
    - Group changes under: Added, Changed, Fixed, Security (use only the relevant ones)
    - Add the version link at the bottom of the file
    - Keep descriptions concise — one line per change

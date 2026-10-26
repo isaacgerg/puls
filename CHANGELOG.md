@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- A footer shared with Puls's sibling tools, on the dashboard and on shared dashboards: Puls's version and when the view was updated on the left, and "Made by Webready in Sweden" with the family's marks on the right. `FOOTER_CREDIT=false` turns the credit off. Under white-label the footer keeps "Powered by Puls" instead. The version comes from a new `PULS_VERSION` constant.
+
 ### Changed
 
 - The colours follow the Webready open source design kit, shared with Puls's sibling tools. Links, buttons and active tabs use a deeper red (`#BE123C`) that is readable as text: the coral reached a contrast of only 3.1:1 against white. The coral stays for the logo, the bars and the charts, and the logo is a flat tile without a gradient. Secondary text and the green and red for up and down are a little darker for contrast, and filled buttons have dark text in dark mode.

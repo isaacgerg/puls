@@ -38,6 +38,9 @@ return [
 
     'app_accent' => $_ENV['APP_ACCENT'] ?? '#f16272',
 
+    // "Made by Webready in Sweden" in the dashboard footer; FOOTER_CREDIT=false turns it off
+    'footer_credit' => !in_array(strtolower(trim($_ENV['FOOTER_CREDIT'] ?? 'true')), ['false', '0', 'no', 'off'], true),
+
     'db_path' => resolve_path($_ENV['DB_PATH'] ?? 'data/puls.sqlite'),
 
     'users_file' => resolve_path($_ENV['USERS_FILE'] ?? 'users.json'),
