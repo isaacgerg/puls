@@ -332,6 +332,12 @@ async function main() {
     // Light theme renders too
     document.documentElement.setAttribute('data-theme', 'light');
     expect(getComputedStyle(document.body).backgroundColor !== '', 'light theme applies');
+    // Colours from the design kit: text in the readable accent, the coral for bars and the mark
+    const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+    expect(css('--accent') === '#be123c' && css('--accent-tile') === '#f16272', 'light theme: readable text accent, coral tile');
+    await sleep(400); // colours transition after the theme switch
+    const tabColour = getComputedStyle(q('.card-tab.active')).color;
+    expect(tabColour === 'rgb(190, 18, 60)', `the active tab uses the readable accent (got ${tabColour})`);
     return fails;
   };
 

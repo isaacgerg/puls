@@ -145,7 +145,7 @@ if ($shareToken !== null) {
     if (file_exists($dashboard)) {
         $html = file_get_contents($dashboard);
         $shareJson = json_encode(['token' => $share['token'], 'site' => $share['site']]);
-        $brandingJson = json_encode(['name' => $config['app_name'], 'tagline' => $config['app_tagline'], 'accent' => $config['app_accent']]);
+        $brandingJson = json_encode(['name' => $config['app_name'], 'tagline' => $config['app_tagline'], 'accent' => $config['app_accent'], 'accentText' => accent_text_colours($config['app_accent'])]);
         $html = inject_after_title($html, '<script>window.PULS_SHARE=' . $shareJson . ';window.PULS_BRANDING=' . $brandingJson . ';</script>');
         respond($html, 200, 'text/html', security_headers());
     }
@@ -314,7 +314,7 @@ if (!is_authenticated()) {
 $dashboard = __DIR__ . '/dashboard.html';
 if (file_exists($dashboard)) {
     $html = file_get_contents($dashboard);
-    $brandingJson = json_encode(['name' => $config['app_name'], 'tagline' => $config['app_tagline'], 'accent' => $config['app_accent']]);
+    $brandingJson = json_encode(['name' => $config['app_name'], 'tagline' => $config['app_tagline'], 'accent' => $config['app_accent'], 'accentText' => accent_text_colours($config['app_accent'])]);
     $html = inject_after_title($html, '<script>window.PULS_BRANDING=' . $brandingJson . ';</script>');
     respond($html, 200, 'text/html', security_headers());
 }
@@ -496,6 +496,7 @@ function show_login(array $config, ?string $error = null): void
     $tagline = htmlspecialchars($config['app_tagline']);
     $accent = htmlspecialchars($config['app_accent']);
     $accentEnc = str_replace('#', '%23', $accent);
+    $accentText = array_map('htmlspecialchars', accent_text_colours($config['app_accent']));
 
     respond(<<<HTML
     <!DOCTYPE html>
@@ -521,24 +522,28 @@ function show_login(array $config, ?string $error = null): void
     </script>
     <style>
       *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+      /* The design kit's tokens that this page uses, and Puls's accent (see dashboard.html) */
       :root {
-        --bg: #f8fafc; --card: #fff; --border: #e2e8f0;
-        --text: #1e293b; --muted: #94a3b8; --label: #475569;
-        --accent: {$accent}; --accent2: {$accent};
-        --error-bg: #fef2f2; --error-text: #dc2626; --error-border: #fecaca;
+        --bg: #f8fafc; --surface: #fff; --line: #e2e8f0;
+        --text: #1e293b; --text-2: #475569; --text-3: #64748b;
+        --accent: {$accentText['light']}; --accent-tile: {$accent}; --on-accent: #fff;
+        --down: #b91c1c; --down-soft: #fef2f2; --down-line: #fecaca;
+        color-scheme: light;
       }
       [data-theme="dark"] {
-        --bg: #0f172a; --card: #1e293b; --border: #334155;
-        --text: #f1f5f9; --muted: #64748b; --label: #94a3b8;
-        --accent: {$accent}; --accent2: {$accent};
-        --error-bg: rgba(248,113,113,0.1); --error-text: #f87171; --error-border: rgba(248,113,113,0.2);
+        --bg: #0f172a; --surface: #1e293b; --line: #334155;
+        --text: #f1f5f9; --text-2: #cbd5e1; --text-3: #94a3b8;
+        --accent: {$accentText['dark']}; --on-accent: #0f172a;
+        --down: #f87171; --down-soft: rgb(248 113 113 / 0.12); --down-line: rgb(248 113 113 / 0.2);
+        color-scheme: dark;
       }
       @media (prefers-color-scheme: dark) {
         :root:not([data-theme="light"]) {
-          --bg: #0f172a; --card: #1e293b; --border: #334155;
-          --text: #f1f5f9; --muted: #64748b; --label: #94a3b8;
-          --accent: #fb7185; --accent2: #f16272;
-          --error-bg: rgba(248,113,113,0.1); --error-text: #f87171; --error-border: rgba(248,113,113,0.2);
+          --bg: #0f172a; --surface: #1e293b; --line: #334155;
+          --text: #f1f5f9; --text-2: #cbd5e1; --text-3: #94a3b8;
+          --accent: {$accentText['dark']}; --on-accent: #0f172a;
+          --down: #f87171; --down-soft: rgb(248 113 113 / 0.12); --down-line: rgb(248 113 113 / 0.2);
+          color-scheme: dark;
         }
       }
       body {
@@ -547,39 +552,39 @@ function show_login(array $config, ?string $error = null): void
         display: flex; align-items: center; justify-content: center;
       }
       .login-card {
-        background: var(--card); border-radius: 16px; padding: 40px;
-        border: 1px solid var(--border); box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        background: var(--surface); border-radius: 16px; padding: 40px;
+        border: 1px solid var(--line); box-shadow: 0 1px 3px rgba(0,0,0,0.04);
         width: 100%; max-width: 380px;
       }
       .logo { display: flex; align-items: center; gap: 12px; margin-bottom: 32px; justify-content: center; }
       .logo-icon {
         width: 40px; height: 40px; border-radius: 12px;
-        background: linear-gradient(135deg, var(--accent), var(--accent2));
+        background: var(--accent-tile);
         display: flex; align-items: center; justify-content: center;
-        box-shadow: 0 2px 8px color-mix(in srgb, var(--accent) 30%, transparent);
+        box-shadow: 0 2px 8px color-mix(in srgb, var(--accent-tile) 30%, transparent);
       }
       .logo-icon svg { width: 20px; height: 20px; }
       .logo-text { font-weight: 700; font-size: 22px; }
-      .tagline { text-align: center; font-size: 13px; color: var(--muted); margin-top: -20px; margin-bottom: 28px; }
-      label { display: block; font-size: 13px; font-weight: 600; color: var(--label); margin-bottom: 6px; }
+      .tagline { text-align: center; font-size: 13px; color: var(--text-3); margin-top: -20px; margin-bottom: 28px; }
+      label { display: block; font-size: 13px; font-weight: 600; color: var(--text-2); margin-bottom: 6px; }
       input[type="text"], input[type="password"] {
         width: 100%; padding: 10px 14px; border-radius: 10px;
-        border: 1px solid var(--border); background: var(--bg); color: var(--text);
+        border: 1px solid var(--line); background: var(--bg); color: var(--text);
         font-size: 14px; outline: none;
         margin-bottom: 16px; transition: border-color 0.15s;
       }
       input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 10%, transparent); }
       button {
         width: 100%; padding: 12px; border-radius: 10px; border: none;
-        background: linear-gradient(135deg, var(--accent), var(--accent2));
-        color: #fff; font-size: 14px; font-weight: 600; cursor: pointer;
+        background: var(--accent);
+        color: var(--on-accent); font-size: 14px; font-weight: 600; cursor: pointer;
         transition: opacity 0.15s;
       }
       button:hover { opacity: 0.9; }
       .error {
-        background: var(--error-bg); color: var(--error-text); padding: 10px 14px;
+        background: var(--down-soft); color: var(--down); padding: 10px 14px;
         border-radius: 10px; font-size: 13px; margin-bottom: 16px;
-        border: 1px solid var(--error-border);
+        border: 1px solid var(--down-line);
       }
     </style>
     </head>
@@ -2071,6 +2076,38 @@ function csv_safe(mixed $value): mixed
 {
     if (!is_string($value) || $value === '' || is_numeric($value)) return $value;
     return str_contains("=+-@\t\r", $value[0]) ? "'" . $value : $value;
+}
+
+/** WCAG contrast ratio between two colours given as #rgb or #rrggbb. */
+function contrast_ratio(string $a, string $b): float
+{
+    $luminance = function (string $hex): float {
+        $hex = ltrim($hex, '#');
+        if (strlen($hex) === 3) $hex = $hex[0] . $hex[0] . $hex[1] . $hex[1] . $hex[2] . $hex[2];
+        $channel = function (int $i) use ($hex): float {
+            $v = hexdec(substr($hex, $i, 2)) / 255;
+            return $v <= 0.03928 ? $v / 12.92 : (($v + 0.055) / 1.055) ** 2.4;
+        };
+        return 0.2126 * $channel(0) + 0.7152 * $channel(2) + 0.0722 * $channel(4);
+    };
+    [$l1, $l2] = [$luminance($a), $luminance($b)];
+    return (max($l1, $l2) + 0.05) / (min($l1, $l2) + 0.05);
+}
+
+/**
+ * Text colour for links and buttons, per theme, for a white-label accent. The accent
+ * itself colours the mark and the bars; it is used for text only where it reaches 4.5:1
+ * against the surface, so a pale brand colour never makes links unreadable.
+ */
+function accent_text_colours(string $accent): array
+{
+    $defaults = ['light' => '#be123c', 'dark' => '#fb7185'];
+    $accent = strtolower($accent);
+    if ($accent === '#f16272' || !preg_match('/^#([0-9a-f]{3}){1,2}$/', $accent)) return $defaults;
+    return [
+        'light' => contrast_ratio($accent, '#ffffff') >= 4.5 ? $accent : $defaults['light'],
+        'dark' => contrast_ratio($accent, '#1e293b') >= 4.5 ? $accent : $defaults['dark'],
+    ];
 }
 
 function normalize_path(string $path, array $extraStrip = []): string
