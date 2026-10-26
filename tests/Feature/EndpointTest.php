@@ -776,6 +776,21 @@ test('api event detail exports CSV with data keys as columns', function () {
         ->and($lines[1])->toContain('/guides,"kale, ""curly""",4');
 });
 
+test('api event CSV defuses spreadsheet formulas sent by visitors', function () {
+    $name = 'csv_formula_' . uniqid();
+    http('POST', '/?event', [
+        'header' => "Content-Type: application/json\r\nUser-Agent: Mozilla/5.0 Chrome/120.0",
+        'content' => json_encode(['event_name' => $name, 'site' => 'test', 'page_path' => '/guides', 'event_data' => ['link' => '=HYPERLINK("https://example.com","x")', '@key' => 'v', 'delta' => -3]]),
+    ]);
+
+    $token = createTestShareToken('test');
+    $body = http('GET', '/?api&days=1&share=' . $token . '&event=' . $name . '&format=csv')['body'];
+    expect($body)->toContain('"\'=HYPERLINK(""https://example.com"",""x"")"')
+        ->and($body)->toContain("'@key")
+        ->and($body)->toContain(',-3')
+        ->and($body)->not->toContain(',=HYPERLINK');
+});
+
 test('js auto form_submit skips prevented submits and reads data-puls-event', function () {
     $r = http('GET', '/?js');
     expect($r['body'])->toContain('defaultPrevented')
