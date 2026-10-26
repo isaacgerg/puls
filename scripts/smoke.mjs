@@ -332,6 +332,9 @@ async function main() {
     // Light theme renders too
     document.documentElement.setAttribute('data-theme', 'light');
     expect(getComputedStyle(document.body).backgroundColor !== '', 'light theme applies');
+    // Figtree, self-hosted, actually loads (a CSP without font-src would block it silently)
+    await document.fonts.ready;
+    expect([...document.fonts].some((f) => f.family.replace(/"/g, '') === 'Figtree' && f.status === 'loaded'), 'Figtree is loaded');
     // Colours from the design kit: text in the readable accent, the coral for bars and the mark
     const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
     expect(css('--accent') === '#be123c' && css('--accent-tile') === '#f16272', 'light theme: readable text accent, coral tile');

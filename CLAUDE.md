@@ -49,6 +49,7 @@ Static file requests (anything with `.` in path) return 404 early to prevent rou
 ```text
 public/index.php        — All backend logic (routing, tracking, API, auth, bot detection)
 public/dashboard.html   — Self-contained dashboard (CSS + JS, no build step)
+public/fonts/           - Figtree (variable woff2) and its SIL Open Font License, copied from the design kit
 config.php              — Configuration (loads .env, auto-detects Forge paths)
 .env.example            — Environment template (checked in)
 .env                    - Optional environment config (gitignored, copy of .env.example)
@@ -57,7 +58,7 @@ users.json              — User credentials (bcrypt hashed, auto-created by CLI
 data/puls.sqlite        — SQLite database (auto-created, gitignored)
 composer.json           — Platform requirements (PHP 8.3+, pdo_sqlite) + dev dependencies (Pest)
 phpunit.xml             — Test configuration (Pest)
-tests/                  — Pest test suite (300 tests, unit + feature)
+tests/                  — Pest test suite (301 tests, unit + feature)
 docs/integrations.md    - Tracking setup: script attributes, events, keeping personal data out of URLs, excluding own visits, reverse proxies
 docs/api.md             - Read API reference (JSON/CSV, share tokens)
 docs/install.md         - Install and run: release download, shared hosting, Nginx, Apache, Forge, Docker, upgrading

@@ -546,8 +546,16 @@ function show_login(array $config, ?string $error = null): void
           color-scheme: dark;
         }
       }
+      @font-face {
+        font-family: "Figtree";
+        src: url("fonts/figtree-latin.woff2") format("woff2");
+        font-weight: 300 900;
+        font-style: normal;
+        font-display: swap;
+      }
       body {
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+        font-family: "Figtree", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        font-variant-numeric: tabular-nums; -webkit-font-smoothing: antialiased;
         background: var(--bg); color: var(--text); min-height: 100vh;
         display: flex; align-items: center; justify-content: center;
       }
@@ -558,13 +566,12 @@ function show_login(array $config, ?string $error = null): void
       }
       .logo { display: flex; align-items: center; gap: 12px; margin-bottom: 32px; justify-content: center; }
       .logo-icon {
-        width: 40px; height: 40px; border-radius: 12px;
+        width: 40px; height: 40px; border-radius: 9px;
         background: var(--accent-tile);
         display: flex; align-items: center; justify-content: center;
-        box-shadow: 0 2px 8px color-mix(in srgb, var(--accent-tile) 30%, transparent);
       }
       .logo-icon svg { width: 20px; height: 20px; }
-      .logo-text { font-weight: 700; font-size: 22px; }
+      .logo-text { font-weight: 800; font-size: 24px; letter-spacing: -0.03em; }
       .tagline { text-align: center; font-size: 13px; color: var(--text-3); margin-top: -20px; margin-bottom: 28px; }
       label { display: block; font-size: 13px; font-weight: 600; color: var(--text-2); margin-bottom: 6px; }
       input[type="text"], input[type="password"] {
@@ -1828,7 +1835,7 @@ function inject_after_title(string $html, string $markup): string
 function security_headers(): array
 {
     return [
-        'Content-Security-Policy' => "default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; manifest-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'self'",
+        'Content-Security-Policy' => "default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; manifest-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'self'",
         'X-Content-Type-Options' => 'nosniff',
         'X-Frame-Options' => 'DENY',
         'Referrer-Policy' => 'strict-origin-when-cross-origin',

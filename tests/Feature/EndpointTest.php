@@ -28,6 +28,15 @@ test('health endpoint returns 200', function () {
     expect($data['status'])->toBe('ok');
 });
 
+test('the Figtree font is served, and the CSP allows it', function () {
+    $font = http('GET', '/fonts/figtree-latin.woff2');
+    expect($font['status'])->toBe(200)
+        ->and(substr($font['body'], 0, 4))->toBe('wOF2');
+
+    $csp = collect(http('GET', '/?login')['headers'])->first(fn ($h) => stripos($h, 'Content-Security-Policy:') === 0);
+    expect($csp)->toContain("font-src 'self'");
+});
+
 test('js endpoint returns javascript', function () {
     $r = http('GET', '/?js');
     expect($r['status'])->toBe(200)
