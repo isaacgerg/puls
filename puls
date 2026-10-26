@@ -59,6 +59,62 @@ function prompt(string $label = ''): string
     return trim(fgets(STDIN));
 }
 
+/**
+ * Read a secret. On a terminal the input is hidden; from a pipe it is one line read through
+ * prompt() like every other answer, so piped input stays in order.
+ */
+function promptSecret(string $label): string
+{
+    echo $label;
+    if (!stream_isatty(STDIN)) {
+        $value = prompt();
+        echo "\n";
+        return $value;
+    }
+    system('stty -echo');
+    $value = trim((string) fgets(STDIN));
+    system('stty echo');
+    echo "\n";
+    return $value;
+}
+
+/** A password to read out or type on a phone: four groups of five, no look-alikes (about 99 bits). */
+function generatePassword(): string
+{
+    $alphabet = 'abcdefghjkmnpqrstuvwxyz23456789';
+    $groups = [];
+    for ($g = 0; $g < 4; $g++) {
+        $group = '';
+        for ($i = 0; $i < 5; $i++) $group .= $alphabet[random_int(0, strlen($alphabet) - 1)];
+        $groups[] = $group;
+    }
+    return implode('-', $groups);
+}
+
+/**
+ * Ask for a password, or generate one on Enter. A typed one needs 10 characters and, on a
+ * terminal, the same again. Exits with 1 when it is too short or does not match.
+ */
+function askPassword(string $username): string
+{
+    $password = promptSecret("Password for {$username} (Enter for a generated one): ");
+    if ($password === '') {
+        $password = generatePassword();
+        echo "Generated password: {$password}\n";
+        echo "Copy it now: Puls keeps only a hash of it, so it cannot show it again.\n";
+        return $password;
+    }
+    if (strlen($password) < 10) {
+        echo "A password needs at least 10 characters. Press Enter instead for a generated one.\n";
+        exit(1);
+    }
+    if (stream_isatty(STDIN) && promptSecret('Same password again: ') !== $password) {
+        echo "The two passwords do not match. Nothing was changed.\n";
+        exit(1);
+    }
+    return $password;
+}
+
 // =====================================================================
 // user:add
 // =====================================================================
@@ -66,8 +122,11 @@ function prompt(string $label = ''): string
 function userAdd(array $config, ?string $username, array $argv): void
 {
     if (!$username) {
-        echo "Usage: php puls user:add <username> [--sites=a,b]\n";
-        exit(1);
+        $username = prompt('Username: ');
+        if ($username === '') {
+            echo "A username is needed: php puls user:add <username> [--sites=a,b]\n";
+            exit(1);
+        }
     }
 
     $users = loadUsers($config['users_file']);
@@ -77,16 +136,7 @@ function userAdd(array $config, ?string $username, array $argv): void
         exit(1);
     }
 
-    echo "Password for {$username}: ";
-    system('stty -echo');
-    $password = trim(fgets(STDIN));
-    system('stty echo');
-    echo "\n";
-
-    if (strlen($password) < 8) {
-        echo "Password must be at least 8 characters.\n";
-        exit(1);
-    }
+    $password = askPassword($username);
 
     // Parse --sites flag
     $sites = null;
@@ -107,8 +157,9 @@ function userAdd(array $config, ?string $username, array $argv): void
     ];
 
     saveUsers($config['users_file'], $users);
-    $scope = $sites ? implode(', ', $sites) : 'alla sajter';
-    echo "User '{$username}' added (access: {$scope}).\n";
+    $scope = $sites ? implode(', ', $sites) : 'all sites';
+    $url = rtrim($_ENV['APP_URL'] ?? '', '/');
+    echo "Added {$username} (access: {$scope})." . ($url ? " Sign in at {$url}" : '') . "\n";
 }
 
 // =====================================================================
@@ -151,7 +202,7 @@ function userEdit(array $config, ?string $username): void
 
     $user = $users[$username];
     $currentSites = $user['sites'] ?? [];
-    $scope = $currentSites ? implode(', ', $currentSites) : 'alla sajter';
+    $scope = $currentSites ? implode(', ', $currentSites) : 'all sites';
     echo "Editing user '{$username}' (current access: {$scope})\n\n";
 
     // Site selection
@@ -161,17 +212,7 @@ function userEdit(array $config, ?string $username): void
     $answer = strtolower(prompt("Change password? (y/N): "));
 
     if ($answer === 'y' || $answer === 'j') {
-        echo "New password: ";
-        system('stty -echo');
-        $password = trim(fgets(STDIN));
-        system('stty echo');
-        echo "\n";
-
-        if (strlen($password) < 8) {
-            echo "Password must be at least 8 characters.\n";
-            exit(1);
-        }
-
+        $password = askPassword($username);
         $user['password'] = password_hash($password, PASSWORD_BCRYPT, ['cost' => 12]);
         echo "Password updated.\n";
     }
@@ -180,7 +221,7 @@ function userEdit(array $config, ?string $username): void
     $users[$username] = $user;
 
     saveUsers($config['users_file'], $users);
-    $scope = $sites ? implode(', ', $sites) : 'alla sajter';
+    $scope = $sites ? implode(', ', $sites) : 'all sites';
     echo "User '{$username}' updated (access: {$scope}).\n";
 }
 
@@ -1239,7 +1280,7 @@ function printHelp(): void
     Puls CLI
 
     Usage:
-      php puls user:add <name> [--sites=a,b]   Add a user
+      php puls user:add [<name>] [--sites=a,b] Add a user
       php puls user:edit [<name>]               Edit user (sites, password)
       php puls user:remove [<name>]             Remove a user
       php puls user:list                       List all users

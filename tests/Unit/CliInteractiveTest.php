@@ -80,6 +80,68 @@ it('user:remove deletes user after confirmation', function () {
 });
 
 // =====================================================================
+// user:add
+// =====================================================================
+
+/** The generated password from a CLI run, or null. Four groups of five, no look-alikes. */
+function generatedPassword(string $output): ?string
+{
+    return preg_match('/Generated password: ([a-hj-km-np-z2-9]{5}(?:-[a-hj-km-np-z2-9]{5}){3})\n/', $output, $m) ? $m[1] : null;
+}
+
+it('user:add asks for a missing name and generates a password on Enter', function () {
+    createCliTestDb($this->dbPath);
+
+    // Name, Enter for a generated password, 0 for all sites
+    $result = runCli($this->tmpDir, 'user:add', [], "anna\n\n0\n");
+    $users = json_decode(file_get_contents($this->usersFile), true);
+    $password = generatedPassword($result['output']);
+
+    expect($users)->toHaveKey('anna')
+        ->and($result['output'])->toContain('(Enter for a generated one)')
+        ->and($result['output'])->toContain('Copy it now')
+        ->and($result['output'])->toContain('Added anna (access: all sites)')
+        ->and($password)->not->toBeNull()
+        ->and(password_verify($password, $users['anna']['password']))->toBeTrue();
+});
+
+it('user:add takes a typed password from a pipe', function () {
+    createCliTestDb($this->dbPath);
+
+    $result = runCli($this->tmpDir, 'user:add', ['bob'], "long-enough-1\n0\n");
+    $users = json_decode(file_get_contents($this->usersFile), true);
+
+    expect($result['output'])->not->toContain('Generated password')
+        ->and(password_verify('long-enough-1', $users['bob']['password']))->toBeTrue();
+});
+
+it('user:add refuses a typed password under 10 characters', function () {
+    createCliTestDb($this->dbPath);
+
+    $result = runCli($this->tmpDir, 'user:add', ['carl'], "short-1\n");
+
+    expect($result['exit'])->toBe(1)
+        ->and($result['output'])->toContain('at least 10 characters')
+        ->and(json_decode(file_get_contents($this->usersFile), true))->not->toHaveKey('carl');
+});
+
+it('user:edit can set a generated password', function () {
+    file_put_contents($this->usersFile, json_encode([
+        'admin' => ['password' => '$2y$12$fake', 'sites' => []],
+    ]));
+    createCliTestDb($this->dbPath);
+
+    // "0" for all sites, "y" to change the password, Enter for a generated one
+    $result = runCli($this->tmpDir, 'user:edit', [], "0\ny\n\n");
+    $users = json_decode(file_get_contents($this->usersFile), true);
+    $password = generatedPassword($result['output']);
+
+    expect($password)->not->toBeNull()
+        ->and(password_verify($password, $users['admin']['password']))->toBeTrue()
+        ->and($result['output'])->toContain('(access: all sites)');
+});
+
+// =====================================================================
 // user:edit
 // =====================================================================
 
