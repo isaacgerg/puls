@@ -23,7 +23,7 @@ Single PHP entry point (`public/index.php`) handles all routing:
 | `GET /?manifest` | No | PWA web app manifest |
 | `GET /?csrf` | No | CSRF token refresh (AJAX) |
 | `GET /?share=<token>` | No | Shared read-only dashboard |
-| `GET /?api&share=<token>` | No | Shared JSON API (scoped to token's site) |
+| `GET /?api&share=<token>` | No | Shared JSON API (scoped to token's site); the token also works as `Authorization: Bearer <token>` |
 | `GET /?api&days=7[&site=x]` | Yes | JSON API |
 | `GET /?api&sites` | Yes | List tracked sites |
 | `GET /` | Yes | Dashboard |
@@ -57,7 +57,7 @@ users.json              — User credentials (bcrypt hashed, auto-created by CLI
 data/puls.sqlite        — SQLite database (auto-created, gitignored)
 composer.json           — Platform requirements (PHP 8.3+, pdo_sqlite) + dev dependencies (Pest)
 phpunit.xml             — Test configuration (Pest)
-tests/                  — Pest test suite (289 tests, unit + feature)
+tests/                  — Pest test suite (297 tests, unit + feature)
 docs/integrations.md    - Tracking setup: script attributes, events, keeping personal data out of URLs, excluding own visits, reverse proxies
 docs/api.md             - Read API reference (JSON/CSV, share tokens)
 docs/install.md         - Install and run: release download, shared hosting, Nginx, Apache, Forge, Docker, upgrading

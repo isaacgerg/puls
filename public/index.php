@@ -126,10 +126,12 @@ if (isset($_GET['csrf'])) {
     respond(json_encode(['token' => $token]), 200, 'application/json');
 }
 
-// Share endpoints (token-based, no session needed)
+// Share endpoints (token-based, no session needed). The read API also takes the token as
+// "Authorization: Bearer", which keeps it out of URLs, server logs and shell history
 
-if (isset($_GET['share'])) {
-    $share = validate_share_token($config, $_GET['share']);
+$shareToken = $_GET['share'] ?? (isset($_GET['api']) ? bearer_token($_SERVER) : null);
+if ($shareToken !== null) {
+    $share = validate_share_token($config, $shareToken);
     if (!$share) {
         http_response_code(404);
         exit;
@@ -321,6 +323,14 @@ respond('Dashboard file not found.', 404, 'text/plain');
 // =====================================================================
 // SHARE TOKENS
 // =====================================================================
+
+/** The token from an "Authorization: Bearer <token>" header, or null without one. */
+function bearer_token(array $server): ?string
+{
+    // Apache passes the header on as REDIRECT_HTTP_AUTHORIZATION after a rewrite
+    $header = trim($server['HTTP_AUTHORIZATION'] ?? $server['REDIRECT_HTTP_AUTHORIZATION'] ?? '');
+    return preg_match('/^Bearer\s+(\S+)$/i', $header, $m) ? $m[1] : null;
+}
 
 function validate_share_token(array $config, string $token): ?array
 {
