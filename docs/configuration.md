@@ -75,7 +75,7 @@ APP_TAGLINE=Your custom tagline
 APP_ACCENT=#e11d48
 ```
 
-This changes the login page, dashboard header, PWA manifest and favicon. The footer always shows "Powered by Puls".
+This changes the login page, dashboard header, PWA manifest and favicon. `APP_ACCENT` colours the logo, the bars and the charts. Links and buttons use it only where it is readable as text (a contrast of 4.5:1 against the background, checked for light and dark mode separately); otherwise they keep Puls's red, so a pale brand colour never makes links hard to read. The footer always shows "Powered by Puls".
 
 ## CLI reference
 

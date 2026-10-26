@@ -57,7 +57,7 @@ users.json              — User credentials (bcrypt hashed, auto-created by CLI
 data/puls.sqlite        — SQLite database (auto-created, gitignored)
 composer.json           — Platform requirements (PHP 8.3+, pdo_sqlite) + dev dependencies (Pest)
 phpunit.xml             — Test configuration (Pest)
-tests/                  — Pest test suite (297 tests, unit + feature)
+tests/                  — Pest test suite (300 tests, unit + feature)
 docs/integrations.md    - Tracking setup: script attributes, events, keeping personal data out of URLs, excluding own visits, reverse proxies
 docs/api.md             - Read API reference (JSON/CSV, share tokens)
 docs/install.md         - Install and run: release download, shared hosting, Nginx, Apache, Forge, Docker, upgrading
@@ -89,6 +89,21 @@ docker-compose.yml      — One-command setup with volume for /app/data
 - **Sender owns the data** - Puls gives sites the controls (`data-query`, `data-path`, no PII in `puls.track`) and documents the risks, but does not inspect, mask or audit what they send. Masking was considered and declined: pattern matching would silently damage legitimate paths and give false confidence
 - **Share tokens in plain text** - hashing them (as Hamstra does) was considered and declined: a token only reads one site's statistics, which live in the same database, so anyone with the database already has what the token protects. Plain text lets `share:list` show a link again, and needs no migration that the CLI (which opens the database without running migrations) would have to handle
 - **Data quality** — normalize_path strips tracking params (fbclid, gclid, utm_*) and, for Meta ad traffic only, Meta's per-click brid (media_type is kept: it records the ad format); normalize_referrer groups social domains, IDN decode
+
+## Design
+
+This tool follows the Webready open source design kit
+(https://github.com/webready-se/open-source-design-kit, cloned next to this repo).
+Read its README.md first, then the doc for what you are changing. Copy values and
+files from it; never link to it at runtime or install it. When the kit and this
+tool disagree, the kit wins, unless this tool's docs say why it differs.
+
+Puls's copy of the kit's tokens is at the top of the `<style>` in `public/dashboard.html`, with the kit version it was copied from. Where Puls differs on purpose:
+
+- **Strict CSP comes later.** The kit asks for `script-src 'self'` and `style-src 'self'`; Puls still has inline handlers and styles and gets there in steps (ROADMAP, Epic 3)
+- **White-label.** `APP_ACCENT` sets `--accent-tile` (logo, bars, charts), and `--accent` (text, links, buttons) only where `accent_text_colours()` finds it readable, through `--brand-text` and `--brand-text-dark`
+- **`--on-accent`** is Puls's own token for text on a filled `--accent` button: white in light mode, dark in dark mode, since the dark accent is light
+- **Chart markers.** Releases are coral and notes teal, so the two can be told apart (the kit draws both as slate lines)
 
 ## Development
 

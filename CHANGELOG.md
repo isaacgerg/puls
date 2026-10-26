@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Changed
+
+- The colours follow the Webready open source design kit, shared with Puls's sibling tools. Links, buttons and active tabs use a deeper red (`#BE123C`) that is readable as text: the coral reached a contrast of only 3.1:1 against white. The coral stays for the logo, the bars and the charts, and the logo is a flat tile without a gradient. Secondary text and the green and red for up and down are a little darker for contrast, and filled buttons have dark text in dark mode.
+- White-label: `APP_ACCENT` colours the logo, the bars and the charts, and links and buttons only where it is readable as text, checked for light and dark mode separately.
+
+### Fixed
+
+- White-label: the bars in the page, event and browser lists, the channel fallback and the chart's gradient stayed coral whatever `APP_ACCENT` said. They follow it now. The login page in dark mode also ignored `APP_ACCENT`.
+
 ## [1.27.0] - 2026-10-26
 
 ### Added
