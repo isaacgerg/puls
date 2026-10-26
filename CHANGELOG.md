@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
-- A footer shared with Puls's sibling tools, on the dashboard and on shared dashboards: Puls's version and when the view was updated on the left, and "Made by Webready in Sweden" on the right (the marks of Webready's other open source tools join it once they are public). `FOOTER_CREDIT=false` turns the credit off. Under white-label the footer keeps "Powered by Puls" instead. The version comes from a new `PULS_VERSION` constant.
+- A footer shared with Puls's sibling tools, on the dashboard and on shared dashboards: Puls's version and when the view was updated on the left, and "Made by Webready in Sweden" on the right, with the marks of Webready's released open source tools (today Puls), each linked; a tool joins once it is public. `FOOTER_CREDIT=false` turns the credit off. Under white-label the footer keeps "Powered by Puls" instead. The version comes from a new `PULS_VERSION` constant.
 
 ### Changed
 
