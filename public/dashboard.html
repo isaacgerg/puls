@@ -51,7 +51,7 @@
    * Dark mode follows the system, and a data-theme="light" or "dark" attribute
    * on <html> overrides it.
    *
-   * Kit version 0.3.0 (see CHANGELOG.md). Keep this line in your copy and
+   * Kit version 0.4.0 (see CHANGELOG.md). Keep this line in your copy and
    * update it when you copy again.
    */
 
@@ -105,6 +105,8 @@
     --radius-sm: 10px;
     --shadow: 0 1px 2px rgb(15 23 42 / 0.04), 0 10px 30px -18px rgb(15 23 42 / 0.25);
     --focus: var(--accent);
+    /* Text on a filled --accent (a primary button): white here, dark slate in dark mode where every accent is light */
+    --on-accent: #ffffff;
 
     color-scheme: light;
   }
@@ -134,6 +136,7 @@
     --none: #475569;
 
     --running-bar: #94a3b8;
+    --on-accent: #0f172a;
     --shadow: none;
 
     color-scheme: dark;
@@ -165,6 +168,7 @@
       --none: #475569;
 
       --running-bar: #94a3b8;
+      --on-accent: #0f172a;
       --shadow: none;
 
       color-scheme: dark;
@@ -173,11 +177,10 @@
 
   /* Puls: the accent block from the kit's docs/colour.md. --accent-tile (the mark, the bars,
      the chart) takes a white-label APP_ACCENT; --accent (text, links, buttons) takes it only
-     where it is readable, through --brand-text and --brand-text-dark (see accent_text_colours()).
-     --on-accent is the text on a filled --accent button: the dark accent is light, so it needs dark text */
-  :root { --accent: var(--brand-text, #be123c); --accent-tile: #f16272; --accent-soft: #fff1f2; --on-accent: #fff; }
-  :root[data-theme="dark"] { --accent: var(--brand-text-dark, #fb7185); --accent-soft: rgb(251 113 133 / 0.12); --on-accent: #0f172a; }
-  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --accent: var(--brand-text-dark, #fb7185); --accent-soft: rgb(251 113 133 / 0.12); --on-accent: #0f172a; } }
+     where it is readable, through --brand-text and --brand-text-dark (see accent_text_colours()) */
+  :root { --accent: var(--brand-text, #be123c); --accent-tile: #f16272; --accent-soft: #fff1f2; }
+  :root[data-theme="dark"] { --accent: var(--brand-text-dark, #fb7185); --accent-soft: rgb(251 113 133 / 0.12); }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --accent: var(--brand-text-dark, #fb7185); --accent-soft: rgb(251 113 133 / 0.12); } }
 
   /* Puls's own: chart notes in teal */
   :root { --note: #0e7490; --note-band: rgba(25,172,202,0.10); }
