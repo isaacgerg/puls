@@ -105,7 +105,6 @@ Puls's copy of the kit's tokens is at the top of the `<style>` in `public/dashbo
 - **White-label.** `APP_ACCENT` sets `--accent-tile` (logo, bars, charts), and `--accent` (text, links, buttons) only where `accent_text_colours()` finds it readable, through `--brand-text` and `--brand-text-dark`
 - **`--on-accent`** is Puls's own token for text on a filled `--accent` button: white in light mode, dark in dark mode, since the dark accent is light
 - **Chart markers.** Releases are coral and notes teal, so the two can be told apart (the kit draws both as slate lines)
-- **Footer marks.** A sibling's mark shows only once its repo is public, and the row only once Puls has a public sibling (the kit shows unreleased tools' marks without a link). Give the tool a `url` in `familyMarks` when it goes public
 
 ## Development
 
