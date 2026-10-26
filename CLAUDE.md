@@ -87,6 +87,7 @@ docker-compose.yml      — One-command setup with volume for /app/data
 - **Privacy-first** - visitor hash of IP + UA + a random salt per day (`salts` table, deleted at the first request of the next day), so old hashes can never be recomputed; no cookies, no PII stored
 - **Forge auto-detection** — `resolve_path()` in config.php detects `/releases/\d+/` pattern and resolves to site root
 - **Sender owns the data** - Puls gives sites the controls (`data-query`, `data-path`, no PII in `puls.track`) and documents the risks, but does not inspect, mask or audit what they send. Masking was considered and declined: pattern matching would silently damage legitimate paths and give false confidence
+- **Share tokens in plain text** - hashing them (as Hamstra does) was considered and declined: a token only reads one site's statistics, which live in the same database, so anyone with the database already has what the token protects. Plain text lets `share:list` show a link again, and needs no migration that the CLI (which opens the database without running migrations) would have to handle
 - **Data quality** — normalize_path strips tracking params (fbclid, gclid, utm_*) and, for Meta ad traffic only, Meta's per-click brid (media_type is kept: it records the ad format); normalize_referrer groups social domains, IDN decode
 
 ## Development
