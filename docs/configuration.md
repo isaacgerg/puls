@@ -48,6 +48,8 @@ php puls user:add client --sites=a,b     # Only sites a and b
 php puls user:edit client                # Change sites or password
 ```
 
+Both ask for a password and suggest one: press Enter and Puls generates a strong password (four groups of five characters, easy to read out or type on a phone) and shows it once. Copy it then, since only its hash is stored. A password you type yourself needs at least 10 characters, and on a terminal you type it twice. Without a name, `user:add` asks for one.
+
 ## Share links
 
 A share link shows one site's dashboard read-only, without a login, and also opens the [read API](api.md) for that site:
