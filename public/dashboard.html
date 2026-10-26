@@ -921,7 +921,7 @@
   .foot a:hover { color: var(--accent); }
   .foot-credit { display: inline-flex; align-items: center; gap: 10px; flex-wrap: wrap; }
   .foot-marks { display: inline-flex; gap: 6px; }
-  .foot-marks a, .foot-marks span { display: inline-flex; border-radius: 4px; }
+  .foot-marks a { display: inline-flex; border-radius: 4px; }
   .foot-marks svg { width: 16px; height: 16px; display: block; }
   @media (max-width: 600px) { .foot { justify-content: center; text-align: center; } }
 
@@ -2723,7 +2723,9 @@
     '</div>';
   }
 
-  // Webready's open source family, for the footer credit. A mark links only to a public page
+  // Webready's open source family, for the footer credit. A tool's mark shows once its repo is
+  // public (give it a url), and the row only once Puls has a public sibling: icons that lead
+  // nowhere would only puzzle people
   var familyMarks = [
     { name: 'Puls', url: 'https://github.com/webready-se/puls', svg: '<svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 36"><rect width="36" height="36" rx="8" fill="#f16272"/><path d="M24 26V16M18 26V10M12 26v-8" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/></svg>' },
     { name: 'Vaka', url: null, svg: '<svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 36"><rect width="36" height="36" rx="8" fill="#0e7490"/><g transform="translate(0.4 0.6) scale(0.88)"><path d="M10 12.6L7.4 6.2L10.9 8.3L11.5 5.2L14.6 10Z" fill="#19acca"/><path d="M30 12.6L32.6 6.2L29.1 8.3L28.5 5.2L25.4 10Z" fill="#19acca"/><path d="M20 8C27.6 8 33 13.2 33 20.8C33 29.2 27.6 35.6 20 35.6S7 29.2 7 20.8C7 13.2 12.4 8 20 8Z" fill="#19acca"/><path d="M11.2 25.4C11.8 31.2 15.4 34.2 20 34.2S28.2 31.2 28.8 25.4C26.2 27 23.2 27.8 20 27.8S13.8 27 11.2 25.4Z" fill="#bfeaf3"/><path d="M14.4 29.6l1.5 1.1 1.5-1.1M22.6 29.6l1.5 1.1 1.5-1.1" fill="none" stroke="#19acca" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="14.6" cy="17.6" r="5.2" fill="#fff"/><circle cx="25.4" cy="17.6" r="5.2" fill="#fff"/><circle cx="14.6" cy="17.8" r="2.7" fill="#0f172a"/><circle cx="25.4" cy="17.8" r="2.7" fill="#0f172a"/><circle cx="15.6" cy="16.8" r="0.85" fill="#fff"/><circle cx="26.4" cy="16.8" r="0.85" fill="#fff"/><path d="M18.2 22.8L20 26L21.8 22.8Q20 23.4 18.2 22.8Z" fill="#f5b942"/><path d="M15.5 36.6v1.6M18 36.6v1.6M22 36.6v1.6M24.5 36.6v1.6" stroke="#f5b942" stroke-width="1.4" stroke-linecap="round"/></g></svg>' },
@@ -2741,12 +2743,11 @@
     if (whiteLabel) {
       right = '<span>Powered by <a href="https://github.com/webready-se/puls" target="_blank" rel="noopener">Puls</a></span>';
     } else if (branding.credit !== false) {
+      var publicMarks = familyMarks.filter(function(m) { return m.url; });
       right = '<span>Made by <a href="https://webready.se" target="_blank" rel="noopener">Webready</a> in Sweden</span>' +
-        '<span class="foot-marks">' + familyMarks.map(function(m) {
-          return m.url
-            ? '<a href="' + m.url + '" target="_blank" rel="noopener" title="' + m.name + '" aria-label="' + m.name + ' on GitHub">' + m.svg + '</a>'
-            : '<span role="img" title="' + m.name + '" aria-label="' + m.name + '">' + m.svg + '</span>';
-        }).join('') + '</span>';
+        (publicMarks.length > 1 ? '<span class="foot-marks">' + publicMarks.map(function(m) {
+          return '<a href="' + m.url + '" target="_blank" rel="noopener" title="' + m.name + '" aria-label="' + m.name + ' on GitHub">' + m.svg + '</a>';
+        }).join('') + '</span>' : '');
     }
     return '<footer class="foot"><span>' + left + '</span>' + (right ? '<span class="foot-credit">' + right + '</span>' : '') + '</footer>';
   }
