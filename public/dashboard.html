@@ -3682,6 +3682,8 @@
   function csvEscape(val) {
     if (val == null) return '';
     var s = String(val);
+    // Visitor-sent text starting with = + - @ would run as a spreadsheet formula
+    if (typeof val === 'string' && /^[=+\-@\t\r]/.test(s) && !isFinite(s)) s = "'" + s;
     if (s.indexOf(',') >= 0 || s.indexOf('"') >= 0 || s.indexOf('\n') >= 0) {
       return '"' + s.replace(/"/g, '""') + '"';
     }

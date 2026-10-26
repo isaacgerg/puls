@@ -1164,7 +1164,7 @@ function get_api_data(array $config, array $user): string
             $stmt->execute(array_merge([$eventName], $dateParams, $siteParams));
             $keys = array_column($eventKeys, 'key');
             $out = fopen('php://temp', 'r+');
-            fputcsv($out, array_merge(['created_at', 'page_path'], $keys), ',', '"', '', "\n");
+            fputcsv($out, array_map('csv_safe', array_merge(['created_at', 'page_path'], $keys)), ',', '"', '', "\n");
             while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
                 $data = $row['event_data'] ? (json_decode($row['event_data'], true) ?: []) : [];
                 $line = [$row['created_at'], $row['page_path']];
@@ -1172,7 +1172,7 @@ function get_api_data(array $config, array $user): string
                     $v = $data[$k] ?? '';
                     $line[] = is_bool($v) ? ($v ? 'true' : 'false') : (is_scalar($v) ? $v : json_encode($v));
                 }
-                fputcsv($out, $line, ',', '"', '', "\n");
+                fputcsv($out, array_map('csv_safe', $line), ',', '"', '', "\n");
             }
             rewind($out);
             $filename = preg_replace('/[^a-z0-9_.-]+/i', '-', ($site ?: 'all-sites') . '-' . $eventName) . '.csv';
@@ -2050,6 +2050,17 @@ function normalize_site(string $site): string
     }
     // Anyone can post a site name: drop markup and control characters, which no real name has
     return preg_replace('/[\x00-\x1f\x7f<>"\'`\\\\]/', '', $site);
+}
+
+/**
+ * A CSV cell that a spreadsheet shows as text: a value from visitors that starts with
+ * = + - @ or a tab or CR gets a leading apostrophe, so it never runs as a formula.
+ * Numbers, negative ones included, are left alone.
+ */
+function csv_safe(mixed $value): mixed
+{
+    if (!is_string($value) || $value === '' || is_numeric($value)) return $value;
+    return str_contains("=+-@\t\r", $value[0]) ? "'" . $value : $value;
 }
 
 function normalize_path(string $path, array $extraStrip = []): string

@@ -497,8 +497,9 @@ test('api entry pages include bounces that add up to the site bounce rate', func
     $site = 'entry-bounce-' . uniqid();
     $db = getTestDb();
     $stmt = $db->prepare('INSERT INTO pageviews (created_at, site, path, visitor_hash) VALUES (?, ?, ?, ?)');
-    $now = time();
-    $at = fn(int $minutes) => date('Y-m-d H:i:s', $now - 3600 + $minutes * 60);
+    // An hour ago, but never before midnight: days=1 is today, so the rows must not fall on yesterday
+    $start = max(time() - 3600, strtotime('today'));
+    $at = fn(int $minutes) => date('Y-m-d H:i:s', $start + $minutes * 60);
     // Start page: 4 entries, 3 leave after one page
     foreach (['a', 'b', 'c'] as $v) {
         $stmt->execute([$at(0), $site, '/', $v]);
@@ -773,6 +774,21 @@ test('api event detail exports CSV with data keys as columns', function () {
     $lines = array_values(array_filter(explode("\n", trim($r['body']))));
     expect($lines[0])->toBe('created_at,page_path,query,zone')
         ->and($lines[1])->toContain('/guides,"kale, ""curly""",4');
+});
+
+test('api event CSV defuses spreadsheet formulas sent by visitors', function () {
+    $name = 'csv_formula_' . uniqid();
+    http('POST', '/?event', [
+        'header' => "Content-Type: application/json\r\nUser-Agent: Mozilla/5.0 Chrome/120.0",
+        'content' => json_encode(['event_name' => $name, 'site' => 'test', 'page_path' => '/guides', 'event_data' => ['link' => '=HYPERLINK("https://example.com","x")', '@key' => 'v', 'delta' => -3]]),
+    ]);
+
+    $token = createTestShareToken('test');
+    $body = http('GET', '/?api&days=1&share=' . $token . '&event=' . $name . '&format=csv')['body'];
+    expect($body)->toContain('"\'=HYPERLINK(""https://example.com"",""x"")"')
+        ->and($body)->toContain("'@key")
+        ->and($body)->toContain(',-3')
+        ->and($body)->not->toContain(',=HYPERLINK');
 });
 
 test('js auto form_submit skips prevented submits and reads data-puls-event', function () {

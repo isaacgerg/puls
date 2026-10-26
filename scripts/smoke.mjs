@@ -93,6 +93,8 @@ async function main() {
     for ($i = 0; $i < 40; $i++) $ev->execute([$hostile, 'xss-' . $i]);
     $pv = $db->prepare("INSERT INTO pageviews (site, path, visitor_hash, created_at) VALUES ('demo.example.com', ?, ?, datetime('now'))");
     for ($i = 0; $i < 400; $i++) $pv->execute(['/' . $hostile, 'xss-' . $i]);
+    // A path a spreadsheet would read as a formula: the CSV export must defuse it
+    for ($i = 0; $i < 450; $i++) $pv->execute(['=HYPERLINK("https://example.com","x")', 'csv-' . $i]);
     // Annotations: a range, a label that needs escaping, and one on the release day (stacked labels)
     $note = $db->prepare("INSERT INTO annotations (site, date, end_date, label, created_at) VALUES ('demo.example.com', ?, ?, ?, datetime('now'))");
     $note->execute([date('Y-m-d', strtotime('-6 days')), date('Y-m-d', strtotime('-4 days')), 'Smoke campaign']);
@@ -378,6 +380,17 @@ async function main() {
       await waitFor(() => goalTile()?.querySelector('.goal-meter') && /^0 \/ 21/.test(goalTile().querySelector('.goal-target').textContent), 'target bar scaled to 7 days (3 per day = 21)', 8000);
     }
     if (q('.menu-close').getAttribute('aria-label') !== 'Close settings') fails.push('settings close button is labelled');
+
+    // CSV export: a visitor-sent value starting with = gets an apostrophe, so a spreadsheet shows it as text
+    let csvBlob = null;
+    const realCreate = URL.createObjectURL, realClick = HTMLAnchorElement.prototype.click;
+    URL.createObjectURL = (b) => { csvBlob = b; return realCreate.call(URL, b); };
+    HTMLAnchorElement.prototype.click = function() {};
+    window.exportData('csv');
+    URL.createObjectURL = realCreate;
+    HTMLAnchorElement.prototype.click = realClick;
+    const csvText = csvBlob ? await csvBlob.text() : '';
+    if (!csvText.includes("'=HYPERLINK(") || /(^|,|\n)"?=HYPERLINK/.test(csvText)) fails.push('CSV export defuses a formula-like path');
 
     // Arranging saved cards: arrow keys on the grip, then dragging it back; the order is saved
     const titles = () => [...document.querySelectorAll('.breakdown-card .card-title')].map((t) => t.textContent);

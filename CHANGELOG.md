@@ -20,6 +20,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 - The 24h button is now called Today: it has always shown today since midnight, not the last 24 hours (7 and 30 days are calendar days too). The chart and the screen reader status say "today" instead of "last 1 days". Reported by @isaacgerg (#80).
 
+### Security
+
+- CSV exports defuse spreadsheet formulas. A value sent by visitors (event data and its keys, paths, referrers, campaign values) that starts with `=`, `+`, `-`, `@`, a tab or a carriage return gets a leading apostrophe, so Excel or Google Sheets shows it as text instead of running it, e.g. as a disguised link. Numbers, negative ones included, are left alone. Applies to the dashboard's CSV export and to the event CSV from the read API.
+
 ## [1.26.1] - 2026-10-25
 
 ### Changed
