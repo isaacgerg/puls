@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ### Added
 
 - Excluded IPs in Settings. The dashboard lists a site's excluded addresses and ranges, with those for all sites, and shows your own address as Puls sees it, with a button to exclude it. Add an address or range with an optional label, or remove one. Only a user with access to every site can change the all-sites rows. Endpoints: `GET /?excluded&site=x`, `POST /?exclude_add`, `POST /?exclude_remove`. Rows are stored as `exclude:add` stores them, so the CLI and the dashboard share one list. Contributed by @isaacgerg (#81).
+- The read API takes the share token as a header too: `Authorization: Bearer TOKEN` instead of `&share=TOKEN`, which keeps it out of URLs, server logs and shell history. `&share=` keeps working. On Apache, the `.htaccess` in the install guide now passes the header on to PHP.
 - Documentation: `docs/api.md` shows how to let an AI coding assistant read a site's numbers with a share token from the site's own project, and that paths, referrers and event names are visitor input it should treat as data.
 
 ### Changed

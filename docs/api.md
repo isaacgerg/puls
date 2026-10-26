@@ -6,13 +6,14 @@ Everything the dashboard shows is available as JSON from the same URL, so other 
 
 There are two ways in:
 
-- **Share token (for other applications).** Create one with `php puls share:create my-site` (optionally `--label="Report bot"` and `--expires=2026-12-31`) and add `&share=TOKEN` to every request. A token is scoped to one site, needs no login and can be revoked with `php puls share:revoke TOKEN`. An unknown, revoked or expired token returns `404`. List tokens with `php puls share:list`.
+- **Share token (for other applications).** Create one with `php puls share:create my-site` (optionally `--label="Report bot"` and `--expires=2026-12-31`) and add `&share=TOKEN` to every request, or send it as a header, `Authorization: Bearer TOKEN`, which keeps it out of URLs, server logs and shell history (the header works for `?api`, not for the shared dashboard page). Some Apache hosts drop the header before PHP sees it, which gives a `404`: add the two lines in [Apache](install.md#apache) to `public/.htaccess`, or use `&share=`. A token is scoped to one site, needs no login and can be revoked with `php puls share:revoke TOKEN`. An unknown, revoked or expired token returns `404`. List tokens with `php puls share:list`.
 - **Session (the dashboard itself).** A logged-in browser session. Without one, `?api` returns `401 {"error": "Unauthorized"}`. Users restricted to some sites only see those; asking for another site returns `{"error": "Access denied"}`.
 
 Treat a share token like a password: anyone with it can read that site's statistics, and the same URL without `api` opens the read-only dashboard.
 
 ```bash
 curl -s 'https://your-puls-domain/?api&share=TOKEN&days=30'
+curl -s -H 'Authorization: Bearer TOKEN' 'https://your-puls-domain/?api&days=30'
 ```
 
 ## Requests
@@ -120,7 +121,7 @@ A share token lets an AI coding assistant, such as Claude Code, read a site's nu
    ```markdown
    ## Data
    Traffic for this site is in Puls. Read it before deciding what to change, and after a deploy to see the effect:
-   curl -s "$PULS_URL/?api&share=$PULS_SHARE_TOKEN&days=30"   # PULS_URL and PULS_SHARE_TOKEN are in .env
+   curl -s -H "Authorization: Bearer $PULS_SHARE_TOKEN" "$PULS_URL/?api&days=30"   # PULS_URL and PULS_SHARE_TOKEN are in .env
    The fields are described in https://github.com/webready-se/puls/blob/main/docs/api.md.
    Never print or commit the token. Say so when the numbers are too small to draw conclusions.
    ```

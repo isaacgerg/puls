@@ -79,6 +79,11 @@ Add a `.htaccess` file in the `public/` directory:
 
 ```apache
 RewriteEngine On
+
+# Pass the Authorization header on to PHP, for a Bearer token on the read API
+RewriteCond %{HTTP:Authorization} .
+RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteRule ^ index.php [L,QSA]
 ```

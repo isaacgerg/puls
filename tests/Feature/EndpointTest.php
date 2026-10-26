@@ -423,6 +423,22 @@ function createTestShareToken(string $site, ?string $expiresAt = null): string
     return $token;
 }
 
+test('api accepts the share token as a bearer header, scoped to its site', function () {
+    $token = createTestShareToken('test');
+    $auth = ['header' => "Authorization: Bearer {$token}"];
+
+    $r = http('GET', '/?api&days=7', $auth);
+    expect($r['status'])->toBe(200)
+        ->and(json_decode($r['body'], true))->toHaveKey('totals');
+    expect(json_decode(http('GET', '/?api&sites', $auth)['body'], true))->toBe(['test'])
+        ->and(http('GET', '/?api&days=7&site=other', $auth)['body'])->toContain('Access denied');
+});
+
+test('api returns 404 for an unknown bearer token', function () {
+    $r = http('GET', '/?api&days=7', ['header' => 'Authorization: Bearer ' . str_repeat('0', 64)]);
+    expect($r['status'])->toBe(404);
+});
+
 test('share endpoint returns 404 for invalid token', function () {
     $r = http('GET', '/?share=invalid-token-that-does-not-exist-1234');
     expect($r['status'])->toBe(404);
