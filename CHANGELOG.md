@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- The release zip left out the app icons in `public/` (`icon-180.png`, `icon-192.png`, `icon-512.png`), so an install from the zip had no icon on the home screen. The zip now holds all of `public/`.
 - White-label: the bars in the page, event and browser lists, the channel fallback and the chart's gradient stayed coral whatever `APP_ACCENT` said. They follow it now. The login page in dark mode also ignored `APP_ACCENT`.
 
 ## [1.27.0] - 2026-10-26

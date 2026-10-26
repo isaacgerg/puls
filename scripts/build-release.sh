@@ -24,12 +24,9 @@ ZIP_FILE="$BUILD_DIR/${RELEASE_NAME}.zip"
 rm -rf "$BUILD_DIR"
 mkdir -p "$RELEASE_DIR"
 
-# Copy runtime files
-cp "$ROOT/public/index.php" "$RELEASE_DIR/"
-cp "$ROOT/public/dashboard.html" "$RELEASE_DIR/"
+# Copy runtime files: all of public/ (the app, the dashboard, the PWA icons, the font)
 mkdir -p "$RELEASE_DIR/public"
-mv "$RELEASE_DIR/index.php" "$RELEASE_DIR/public/"
-mv "$RELEASE_DIR/dashboard.html" "$RELEASE_DIR/public/"
+cp -R "$ROOT/public/." "$RELEASE_DIR/public/"
 
 cp "$ROOT/config.php" "$RELEASE_DIR/"
 cp "$ROOT/puls" "$RELEASE_DIR/"
