@@ -23,6 +23,7 @@ LOCKOUT_MINUTES=15          # Window for those failures, and how long the lockou
 IGNORED_BOTS=               # Bot UA patterns to exclude (comma-separated)
 TRUSTED_PROXIES=            # Proxies in front of Puls (IPs/CIDR), see integrations.md
 EVENTS_RETENTION_DAYS=400   # Days to keep custom events, 0 = forever
+FOOTER_CREDIT=true          # "Made by Webready in Sweden" in the dashboard footer, false = off
 ```
 
 `TRUSTED_PROXIES` matters when Puls runs behind a reverse proxy, Cloudflare or a load balancer: see [reverse proxies](integrations.md#behind-a-reverse-proxy-docker-cloudflare-load-balancers).
@@ -75,7 +76,7 @@ APP_TAGLINE=Your custom tagline
 APP_ACCENT=#e11d48
 ```
 
-This changes the login page, dashboard header, PWA manifest and favicon. `APP_ACCENT` colours the logo, the bars and the charts. Links and buttons use it only where it is readable as text (a contrast of 4.5:1 against the background, checked for light and dark mode separately); otherwise they keep Puls's red, so a pale brand colour never makes links hard to read. The footer always shows "Powered by Puls".
+This changes the login page, dashboard header, PWA manifest and favicon. `APP_ACCENT` colours the logo, the bars and the charts. Links and buttons use it only where it is readable as text (a contrast of 4.5:1 against the background, checked for light and dark mode separately); otherwise they keep Puls's red, so a pale brand colour never makes links hard to read. Under white-label the footer says "Powered by Puls". Without it, the footer says "Made by Webready in Sweden"; `FOOTER_CREDIT=false` turns that off.
 
 ## CLI reference
 

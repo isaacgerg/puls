@@ -448,6 +448,13 @@ test('api returns 404 for an unknown bearer token', function () {
     expect($r['status'])->toBe(404);
 });
 
+test('the dashboard gets the version and the footer credit setting', function () {
+    preg_match("/const PULS_VERSION = '([^']+)';/", file_get_contents(__DIR__ . '/../../public/index.php'), $m);
+    $body = http('GET', '/?share=' . createTestShareToken('test'))['body'];
+    expect($body)->toContain('"version":"' . $m[1] . '"')
+        ->and($body)->toContain('"credit":true');
+});
+
 test('share endpoint returns 404 for invalid token', function () {
     $r = http('GET', '/?share=invalid-token-that-does-not-exist-1234');
     expect($r['status'])->toBe(404);

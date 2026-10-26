@@ -19,6 +19,9 @@
 
 $config = require __DIR__ . '/../config.php';
 
+// Shown in the dashboard footer. Bump it with the CHANGELOG heading when releasing (tests/Unit/VersionTest.php)
+const PULS_VERSION = '1.27.0';
+
 // =====================================================================
 // ROUTING
 // =====================================================================
@@ -145,7 +148,7 @@ if ($shareToken !== null) {
     if (file_exists($dashboard)) {
         $html = file_get_contents($dashboard);
         $shareJson = json_encode(['token' => $share['token'], 'site' => $share['site']]);
-        $brandingJson = json_encode(['name' => $config['app_name'], 'tagline' => $config['app_tagline'], 'accent' => $config['app_accent'], 'accentText' => accent_text_colours($config['app_accent'])]);
+        $brandingJson = json_encode(['name' => $config['app_name'], 'tagline' => $config['app_tagline'], 'accent' => $config['app_accent'], 'accentText' => accent_text_colours($config['app_accent']), 'version' => PULS_VERSION, 'credit' => $config['footer_credit']]);
         $html = inject_after_title($html, '<script>window.PULS_SHARE=' . $shareJson . ';window.PULS_BRANDING=' . $brandingJson . ';</script>');
         respond($html, 200, 'text/html', security_headers());
     }
@@ -314,7 +317,7 @@ if (!is_authenticated()) {
 $dashboard = __DIR__ . '/dashboard.html';
 if (file_exists($dashboard)) {
     $html = file_get_contents($dashboard);
-    $brandingJson = json_encode(['name' => $config['app_name'], 'tagline' => $config['app_tagline'], 'accent' => $config['app_accent'], 'accentText' => accent_text_colours($config['app_accent'])]);
+    $brandingJson = json_encode(['name' => $config['app_name'], 'tagline' => $config['app_tagline'], 'accent' => $config['app_accent'], 'accentText' => accent_text_colours($config['app_accent']), 'version' => PULS_VERSION, 'credit' => $config['footer_credit']]);
     $html = inject_after_title($html, '<script>window.PULS_BRANDING=' . $brandingJson . ';</script>');
     respond($html, 200, 'text/html', security_headers());
 }

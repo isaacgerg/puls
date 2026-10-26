@@ -332,6 +332,10 @@ async function main() {
     // Light theme renders too
     document.documentElement.setAttribute('data-theme', 'light');
     expect(getComputedStyle(document.body).backgroundColor !== '', 'light theme applies');
+    // The shared footer: name, version and freshness, then the Webready credit with the family's marks
+    const foot = q('#app .foot');
+    expect(foot && /^Puls \d+\.\d+\.\d+ · from the tracking script, updated \d\d:\d\d$/.test(foot.firstElementChild.textContent), 'footer names Puls, its version and when it was updated');
+    expect(foot && foot.querySelector('a[href="https://webready.se"]') && foot.querySelectorAll('.foot-marks svg').length === 4 && foot.querySelectorAll('.foot-marks a').length === 1, 'footer credit links Webready and shows four marks, only Puls linked');
     // Figtree, self-hosted, actually loads (a CSP without font-src would block it silently)
     await document.fonts.ready;
     expect([...document.fonts].some((f) => f.family.replace(/"/g, '') === 'Figtree' && f.status === 'loaded'), 'Figtree is loaded');
