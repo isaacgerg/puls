@@ -27,7 +27,7 @@ Grab the zip from the [latest release](https://github.com/webready-se/puls/relea
 
 ```bash
 unzip puls-*.zip
-cd puls-*
+cd puls-*/
 php puls user:add admin
 php -S localhost:8080 -t public   # try it locally
 ```

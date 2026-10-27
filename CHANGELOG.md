@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Fixed
+
+- The install steps in the README and `docs/install.md` ran `cd puls-*` after unzipping, which also matched the zip itself: zsh and bash 5 stopped there, and only the old bash on macOS carried on. They now run `cd puls-*/`, which matches only the folder.
+
 ## [1.28.0] - 2026-10-26
 
 ### Added
