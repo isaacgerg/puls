@@ -25,7 +25,7 @@ Upload it to any PHP host and see your traffic in minutes, without a cookie bann
 On any host with PHP 8.3 or newer, download the [latest release](https://github.com/webready-se/puls/releases/latest), then:
 
 ```bash
-unzip puls-*.zip && cd puls-*
+unzip puls-*.zip && cd puls-*/
 php puls user:add admin            # create your login
 php -S localhost:8080 -t public    # try it, or point your web server at public/
 ```
