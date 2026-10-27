@@ -597,6 +597,10 @@ async function main() {
     const q = (s) => document.querySelector(s);
     const waitFor = async (fn) => { for (let t = 0; t < 5000 && !fn(); t += 100) await sleep(100); return fn(); };
     const fails = [];
+    // An earlier step leaves Today (one bar) picked; seven days give other days to click
+    if (!await waitFor(() => q('.period-btn[data-days="7"]'))) return ['no 7 days period button'];
+    q('.period-btn[data-days="7"]').click();
+    if (!await waitFor(() => document.querySelectorAll('#chart-card .chart-col[data-date]').length === 7)) return ['7 days shows seven days'];
     if (!await waitFor(() => document.querySelectorAll('#hour-card .hour-chart .chart-col').length === 24)) return ['hourly card shows 24 hours'];
     const days = [...document.querySelectorAll('#chart-card .chart-col[data-date]')].map((c) => c.dataset.date);
     if (q('#chart-card .chart-col.selected')?.dataset.date !== days[days.length - 1]) fails.push('hourly card opens on the latest day');
@@ -610,9 +614,9 @@ async function main() {
     q('#chart-card .card-tab[data-chart="views"]').click();
     return fails;
   };
-  const result4 = await send('Runtime.evaluate', { expression: `(${hourly.toString()})()`, awaitPromise: true, returnByValue: true });
-  if (result4.exceptionDetails) errors.push(`Hourly card steps threw: ${result4.exceptionDetails.exception?.description}`);
-  failures.push(...(result4.result?.value || []));
+  const resultHours = await send('Runtime.evaluate', { expression: `(${hourly.toString()})()`, awaitPromise: true, returnByValue: true });
+  if (resultHours.exceptionDetails) errors.push(`Hourly card steps threw: ${resultHours.exceptionDetails.exception?.description}`);
+  failures.push(...(resultHours.result?.value || []));
 
   ws.close();
   failures.push(...errors);
