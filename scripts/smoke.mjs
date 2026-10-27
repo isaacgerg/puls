@@ -609,6 +609,12 @@ async function main() {
     q(`#chart-card .chart-col[data-date="${pick}"]`).click();
     if (!await waitFor(() => q('#hour-title').textContent.endsWith(label) && document.querySelectorAll('#hour-card .hour-chart .chart-col').length === 24)) fails.push(`clicking ${pick} shows its hours (title: ${q('#hour-title').textContent})`);
     if (document.querySelectorAll('#chart-card .chart-col.selected').length !== 1 || q('#chart-card .chart-col.selected').dataset.date !== pick) fails.push('the clicked day is the one marked');
+    if (q(`#chart-card .chart-col[data-date="${pick}"]`).getAttribute('aria-pressed') !== 'true') fails.push('the picked day is aria-pressed');
+    // Keyboard: Enter on a focused day picks it
+    const keyed = q(`#chart-card .chart-col[data-date="${days[days.length - 2]}"]`);
+    keyed.focus();
+    keyed.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    if (!await waitFor(() => keyed.classList.contains('selected'))) fails.push('Enter on a focused day picks it');
     q('#chart-card .card-tab[data-chart="visitors"]').click();
     if (!q('#hour-title').textContent.startsWith('Visitors by hour')) fails.push('the hourly card follows the chart tab');
     q('#chart-card .card-tab[data-chart="views"]').click();
