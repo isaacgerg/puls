@@ -565,6 +565,31 @@ async function main() {
   if (result3.exceptionDetails) errors.push(`Installed-app steps threw: ${result3.exceptionDetails.exception?.description}`);
   failures.push(...(result3.result?.value || []));
 
+  // 9. The chart's Pageviews | Visitors tab is remembered across a reload
+  await send('Runtime.evaluate', { expression: `localStorage.removeItem('puls-from'); localStorage.removeItem('puls-to')` });
+  const pickTab = async (tab) => {
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+    for (let t = 0; t < 5000 && !document.querySelector('#chart-card .card-tab[data-chart]'); t += 100) await sleep(100);
+    const el = document.querySelector(`#chart-card .card-tab[data-chart="${tab}"]`);
+    if (!el) return 'no chart tab to click';
+    el.click();
+    return localStorage.getItem('puls-chart') === tab ? '' : `picking ${tab} is not stored`;
+  };
+  const readTab = async () => {
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+    for (let t = 0; t < 5000 && !document.querySelector('#chart-card .card-tab.active[data-chart]'); t += 100) await sleep(100);
+    return document.querySelector('#chart-card .card-tab.active[data-chart]')?.dataset.chart || 'none';
+  };
+  for (const tab of ['visitors', 'views']) {
+    const picked = await send('Runtime.evaluate', { expression: `(${pickTab.toString()})(${JSON.stringify(tab)})`, awaitPromise: true, returnByValue: true });
+    if (picked.result?.value) failures.push(picked.result.value);
+    const wait6 = loaded();
+    await send('Page.navigate', { url: `${base}/` });
+    await wait6;
+    const shown = await send('Runtime.evaluate', { expression: `(${readTab.toString()})()`, awaitPromise: true, returnByValue: true });
+    if (shown.result?.value !== tab) failures.push(`chart opens on ${tab} after picking it (showed ${shown.result?.value})`);
+  }
+
   ws.close();
   failures.push(...errors);
   if (failures.length) {
@@ -572,7 +597,7 @@ async function main() {
     failures.forEach((f) => console.error('  - ' + f));
     process.exitCode = 1;
   } else {
-    console.log('Dashboard smoke test passed: load, section order, islands kept across a refresh, release markers, breakdown card (count, sparkline, Show all) and its details, arranging cards (keys, drag), undo for card and goal removal, hostile event, path and site names render as text, entry page bounce, annotations (shared view, add, relabel, remove), excluding your own address in Settings, keyboard drill-down, group by version, funnel incl. unseen event, compare, 90 days, Today period wording, light theme, logged-in goal for an unseen event (dimmed tile, target bar), tabs pattern, dialog focus trap, status announcements. No JS errors.');
+    console.log('Dashboard smoke test passed: load, section order, islands kept across a refresh, release markers, breakdown card (count, sparkline, Show all) and its details, arranging cards (keys, drag), undo for card and goal removal, hostile event, path and site names render as text, entry page bounce, annotations (shared view, add, relabel, remove), excluding your own address in Settings, keyboard drill-down, group by version, funnel incl. unseen event, compare, 90 days, chart tab remembered, Today period wording, light theme, logged-in goal for an unseen event (dimmed tile, target bar), tabs pattern, dialog focus trap, status announcements. No JS errors.');
   }
 }
 

@@ -2018,7 +2018,7 @@
       '</div><div class="stat-icon">' + icon + '</div></div></div>';
   }
 
-  var chartMode = 'views';
+  var chartMode = localStorage.getItem('puls-chart') === 'visitors' ? 'visitors' : 'views';
   var compareMode = localStorage.getItem('puls-compare') === '1';
 
   function renderChart(d) {
@@ -2151,6 +2151,7 @@
 
   window.switchChartMode = function(el) {
     chartMode = el.getAttribute('data-chart');
+    localStorage.setItem('puls-chart', chartMode);
     var card = el.closest('.card');
     card.querySelectorAll('.card-tab').forEach(function(t) { t.classList.remove('active'); });
     el.classList.add('active');
